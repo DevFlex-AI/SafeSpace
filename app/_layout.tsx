@@ -1,0 +1,20 @@
+import { Stack } from 'expo-router';
+import { AppProvider } from '../contexts/AppContext';
+
+export default function RootLayout() {
+  return (
+    <AppProvider>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen
+          name="breathing"
+          options={{ presentation: 'fullScreenModal', animation: 'fade' }}
+        />
+        <Stack.Screen
+          name="grounding"
+          options={{ presentation: 'fullScreenModal', animation: 'fade' }}
+        />
+      </Stack>
+    </AppProvider>
+  );
+}
