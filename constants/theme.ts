@@ -1,5 +1,5 @@
-// SafeSpace Design System — Calm + Playful (Q1)
-// Low-stimulation, accessibility-first, large touch targets
+// SafeSpace Design System — Liquid Glass Edition
+// Low-stimulation, accessibility-first, glassmorphism aesthetic
 
 export const theme = {
   // Primary Palette — Calm Lavender
@@ -51,6 +51,83 @@ export const theme = {
 
   // Shadows
   shadowColor: '#2D2845',
+
+  // ═══════════════════════════════════════════════════════════
+  // LIQUID GLASS AESTHETIC SYSTEM
+  // ═══════════════════════════════════════════════════════════
+
+  // Glass base styles
+  glass: {
+    // Light glass (default)
+    light: {
+      background: 'rgba(255, 255, 255, 0.65)',
+      border: 'rgba(255, 255, 255, 0.4)',
+      shadow: 'rgba(139, 126, 200, 0.15)',
+    },
+    // Medium glass (more opaque)
+    medium: {
+      background: 'rgba(255, 255, 255, 0.80)',
+      border: 'rgba(255, 255, 255, 0.5)',
+      shadow: 'rgba(139, 126, 200, 0.20)',
+    },
+    // Dark glass
+    dark: {
+      background: 'rgba(45, 40, 69, 0.75)',
+      border: 'rgba(255, 255, 255, 0.15)',
+      shadow: 'rgba(0, 0, 0, 0.25)',
+    },
+    // Primary tinted glass
+    primary: {
+      background: 'rgba(139, 126, 200, 0.25)',
+      border: 'rgba(255, 255, 255, 0.35)',
+      shadow: 'rgba(139, 126, 200, 0.25)',
+    },
+    // Accent tinted glass
+    accent: {
+      background: 'rgba(107, 197, 160, 0.25)',
+      border: 'rgba(255, 255, 255, 0.35)',
+      shadow: 'rgba(107, 197, 160, 0.25)',
+    },
+    // Urgent/Emergency glass (red tint)
+    urgent: {
+      background: 'rgba(232, 139, 139, 0.35)',
+      border: 'rgba(255, 255, 255, 0.4)',
+      shadow: 'rgba(232, 139, 139, 0.3)',
+    },
+  },
+
+  // Blur intensity levels
+  blur: {
+    light: 10,
+    medium: 20,
+    heavy: 35,
+    extreme: 50,
+  },
+
+  // Glass animation presets
+  glassAnimation: {
+    subtle: {
+      duration: 300,
+      easing: 'ease-in-out',
+    },
+    medium: {
+      duration: 500,
+      easing: 'ease-out',
+    },
+    prominent: {
+      duration: 800,
+      easing: 'spring',
+    },
+  },
+
+  // Voice chat specific (blue theme)
+  voiceChat: {
+    background: 'rgba(30, 64, 175, 0.85)', // Deep blue
+    bubble: 'rgba(59, 130, 246, 0.6)', // Blue accent
+    waveform: 'rgba(147, 197, 253, 0.8)', // Light blue
+    text: '#FFFFFF',
+    icon: '#93C5FD',
+  },
 
   // Spacing
   spacing: {
