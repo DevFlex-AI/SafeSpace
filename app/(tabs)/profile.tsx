@@ -9,12 +9,16 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import theme from '../../constants/theme';
+import { useRouter } from 'expo-router';
 import { useApp } from '../../contexts/AppContext';
 import { useAuth, useAlert } from '@/template';
 import { APP_CONFIG } from '../../constants/config';
+import GlassView from '../../components/GlassView';
+import EmergencyButton from '../../components/EmergencyButton';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { profile, updateProfile, updateSettings, contacts, addContact, removeContact } = useApp();
   const { user, logout } = useAuth();
   const { showAlert } = useAlert();
@@ -62,6 +66,7 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={styles.container}>
+      <EmergencyButton />
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: insets.bottom + 16 }} showsVerticalScrollIndicator={false}>
         {/* Profile Header */}
         <Animated.View entering={FadeInDown.duration(500)}>
@@ -101,11 +106,11 @@ export default function ProfileScreen() {
               { icon: 'check-circle', value: profile.tasksCompleted, label: 'Tasks\nDone', color: theme.accent },
               { icon: 'star', value: profile.totalXp, label: 'Total\nXP', color: theme.primary },
             ].map((stat, idx) => (
-              <View key={idx} style={styles.statCard}>
+              <GlassView key={idx} style={styles.statCard} variant="light" blurIntensity="light">
                 <MaterialIcons name={stat.icon as any} size={24} color={stat.color} />
                 <Text style={[styles.statValue, { color: stat.color }]}>{stat.value}</Text>
                 <Text style={styles.statLabel}>{stat.label}</Text>
-              </View>
+              </GlassView>
             ))}
           </View>
         </Animated.View>
@@ -119,17 +124,17 @@ export default function ProfileScreen() {
             </Pressable>
           </View>
           {showAddContact ? (
-            <Animated.View entering={FadeInDown.duration(300)} style={styles.addContactCard}>
+            <GlassView variant="light" blurIntensity="medium" style={styles.addContactCard}>
               <TextInput style={styles.contactInput} value={newContact.name} onChangeText={(t) => setNewContact(prev => ({ ...prev, name: t }))} placeholder="Name" placeholderTextColor={theme.textMuted} />
               <TextInput style={styles.contactInput} value={newContact.phone} onChangeText={(t) => setNewContact(prev => ({ ...prev, phone: t }))} placeholder="Phone number" placeholderTextColor={theme.textMuted} keyboardType="phone-pad" />
               <TextInput style={styles.contactInput} value={newContact.relationship} onChangeText={(t) => setNewContact(prev => ({ ...prev, relationship: t }))} placeholder="Relationship (e.g., Teacher)" placeholderTextColor={theme.textMuted} />
               <Pressable style={styles.saveContactBtn} onPress={handleAddContact}>
                 <Text style={styles.saveContactBtnText}>Add Contact</Text>
               </Pressable>
-            </Animated.View>
+            </GlassView>
           ) : null}
           {contacts.map((contact) => (
-            <View key={contact.id} style={styles.contactCard}>
+            <GlassView key={contact.id} style={styles.contactCard} variant="light" blurIntensity="light">
               <View style={styles.contactIcon}><MaterialIcons name="person" size={22} color={theme.primary} /></View>
               <View style={styles.contactInfo}>
                 <Text style={styles.contactName}>{contact.name}</Text>
@@ -139,21 +144,21 @@ export default function ProfileScreen() {
               <Pressable style={styles.contactAction} onPress={() => handleRemoveContact(contact.id, contact.name)}>
                 <MaterialIcons name="more-vert" size={20} color={theme.textMuted} />
               </Pressable>
-            </View>
+            </GlassView>
           ))}
-          <View style={styles.crisisCard}>
+          <GlassView style={styles.crisisCard} variant="urgent" blurIntensity="medium">
             <MaterialIcons name="phone" size={20} color={theme.error} />
             <View style={{ flex: 1 }}>
               <Text style={styles.crisisLabel}>{APP_CONFIG.safety.crisisResources.phoneName}</Text>
               <Text style={styles.crisisNumber}>Call or text {APP_CONFIG.safety.crisisResources.phone}</Text>
             </View>
-          </View>
+          </GlassView>
         </Animated.View>
 
         {/* Settings */}
         <Animated.View entering={FadeInDown.duration(500).delay(300)} style={styles.section}>
           <Text style={styles.sectionTitle}>Settings</Text>
-          <View style={styles.settingsCard}>
+          <GlassView style={styles.settingsCard} variant="light" blurIntensity="medium">
             {[
               { label: 'Notifications', key: 'notifications', icon: 'notifications-none' },
               { label: 'Mood Reminders', key: 'moodReminders', icon: 'schedule' },
@@ -171,7 +176,7 @@ export default function ProfileScreen() {
                 />
               </View>
             ))}
-          </View>
+          </GlassView>
         </Animated.View>
 
         {/* Sign Out */}
@@ -184,6 +189,17 @@ export default function ProfileScreen() {
 
         {/* About */}
         <Animated.View entering={FadeInDown.duration(500).delay(500)} style={styles.section}>
+          <GlassView style={styles.roadmapBtn} onPress={() => { Haptics.selectionAsync(); router.push('/roadmap'); }}>
+            <View style={styles.roadmapContent}>
+              <MaterialIcons name="map" size={24} color={theme.primary} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.roadmapTitle}>1,000 Feature Roadmap</Text>
+                <Text style={styles.roadmapDesc}>See what we&apos;re building next</Text>
+              </View>
+              <MaterialIcons name="chevron-right" size={24} color={theme.textMuted} />
+            </View>
+          </GlassView>
+
           <View style={styles.aboutCard}>
             <Text style={styles.aboutName}>{APP_CONFIG.name}</Text>
             <Text style={styles.aboutVersion}>Version {APP_CONFIG.version}</Text>
@@ -215,15 +231,15 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 18, fontWeight: '700', color: theme.textPrimary, marginBottom: 12 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  statCard: { width: '47%', backgroundColor: theme.surface, borderRadius: theme.radius.lg, padding: 16, alignItems: 'center', gap: 6, shadowColor: theme.shadowColor, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
+  statCard: { width: '47%', padding: 16, alignItems: 'center', gap: 6 },
   statValue: { fontSize: 28, fontWeight: '700' },
   statLabel: { fontSize: 12, color: theme.textSecondary, textAlign: 'center', lineHeight: 16 },
   addBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: theme.primarySoft, alignItems: 'center', justifyContent: 'center' },
-  addContactCard: { backgroundColor: theme.surface, borderRadius: theme.radius.lg, padding: 16, marginBottom: 12, gap: 10 },
+  addContactCard: { padding: 16, marginBottom: 12, gap: 10 },
   contactInput: { backgroundColor: theme.backgroundSecondary, borderRadius: theme.radius.sm, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: theme.textPrimary },
   saveContactBtn: { backgroundColor: theme.primary, borderRadius: theme.radius.md, paddingVertical: 12, alignItems: 'center' },
   saveContactBtnText: { fontSize: 15, fontWeight: '600', color: '#FFF' },
-  contactCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.surface, borderRadius: theme.radius.md, padding: 14, marginBottom: 8, gap: 12 },
+  contactCard: { flexDirection: 'row', alignItems: 'center', padding: 14, marginBottom: 8, gap: 12 },
   contactIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: theme.primarySoft, alignItems: 'center', justifyContent: 'center' },
   contactInfo: { flex: 1 },
   contactName: { fontSize: 16, fontWeight: '600', color: theme.textPrimary },
@@ -231,15 +247,19 @@ const styles = StyleSheet.create({
   emergencyBadge: { backgroundColor: theme.error + '20', paddingHorizontal: 8, paddingVertical: 3, borderRadius: theme.radius.sm },
   emergencyText: { fontSize: 11, fontWeight: '700', color: theme.error },
   contactAction: { padding: 4 },
-  crisisCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.error + '08', borderRadius: theme.radius.md, padding: 14, gap: 12, marginTop: 4, borderWidth: 1, borderColor: theme.error + '20' },
+  crisisCard: { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12, marginTop: 4 },
   crisisLabel: { fontSize: 14, fontWeight: '600', color: theme.textPrimary },
   crisisNumber: { fontSize: 13, color: theme.textSecondary },
-  settingsCard: { backgroundColor: theme.surface, borderRadius: theme.radius.lg, overflow: 'hidden' },
+  settingsCard: { overflow: 'hidden' },
   settingRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16, gap: 12 },
   settingBorder: { borderTopWidth: 1, borderTopColor: theme.borderLight },
   settingLabel: { flex: 1, fontSize: 15, fontWeight: '500', color: theme.textPrimary },
   logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: theme.error + '10', borderRadius: theme.radius.lg, paddingVertical: 16, gap: 8, borderWidth: 1, borderColor: theme.error + '20' },
   logoutText: { fontSize: 16, fontWeight: '600', color: theme.error },
+  roadmapBtn: { padding: 16, marginBottom: 24 },
+  roadmapContent: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  roadmapTitle: { fontSize: 16, fontWeight: '700', color: theme.textPrimary },
+  roadmapDesc: { fontSize: 13, color: theme.textSecondary },
   aboutCard: { alignItems: 'center', paddingVertical: 24 },
   aboutName: { fontSize: 18, fontWeight: '700', color: theme.textPrimary },
   aboutVersion: { fontSize: 13, color: theme.textMuted, marginTop: 4 },

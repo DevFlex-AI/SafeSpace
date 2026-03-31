@@ -16,6 +16,8 @@ import {
   initBreathingSounds, unloadBreathingSounds,
   playInhale, playHold, playExhale, playCompletion,
 } from '../services/audio';
+import GlassView from '../components/GlassView';
+import EmergencyButton from '../components/EmergencyButton';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CIRCLE_SIZE = SCREEN_WIDTH * 0.55;
@@ -98,7 +100,7 @@ export default function BreathingScreen() {
       });
     }, 1000);
     return () => clearInterval(interval);
-  }, [phase, isActive, currentCycle]);
+  }, [phase, isActive, currentCycle, defaultCycles, exhaleSeconds, holdSeconds, inhaleSeconds]);
 
   // Animate + play sound based on phase
   useEffect(() => {
@@ -123,7 +125,7 @@ export default function BreathingScreen() {
       opacity.value = withTiming(0.7, { duration: 500 });
       if (soundEnabled && soundsReady) playCompletion();
     }
-  }, [phase]);
+  }, [phase, exhaleSeconds, holdSeconds, inhaleSeconds, opacity, scale, soundEnabled, soundsReady]);
 
   const startExercise = () => {
     Haptics.selectionAsync();
@@ -146,19 +148,22 @@ export default function BreathingScreen() {
     <View style={styles.container}>
       <Image source={require('../assets/images/breathing-bg.png')} style={StyleSheet.absoluteFill} contentFit="cover" blurRadius={40} />
       <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(248,246,255,0.85)' }]} />
+      <EmergencyButton />
 
       {/* Close */}
-      <Pressable style={[styles.closeBtn, { top: insets.top + 12 }]} onPress={() => router.back()}>
+      <GlassView style={[styles.closeBtn, { top: insets.top + 12 }]} onPress={() => router.back()} variant="light" blurIntensity="medium">
         <MaterialIcons name="close" size={24} color={theme.textSecondary} />
-      </Pressable>
+      </GlassView>
 
       {/* Sound Toggle */}
-      <Pressable
+      <GlassView
         style={[styles.soundBtn, { top: insets.top + 12 }]}
         onPress={() => { Haptics.selectionAsync(); setSoundEnabled(!soundEnabled); }}
+        variant="light"
+        blurIntensity="medium"
       >
         <MaterialIcons name={soundEnabled ? 'volume-up' : 'volume-off'} size={22} color={theme.textSecondary} />
-      </Pressable>
+      </GlassView>
 
       <View style={styles.content}>
         <Animated.View entering={FadeIn.duration(600)}>
@@ -233,8 +238,8 @@ export default function BreathingScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.background },
-  closeBtn: { position: 'absolute', left: 16, zIndex: 10, width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.8)', alignItems: 'center', justifyContent: 'center' },
-  soundBtn: { position: 'absolute', right: 16, zIndex: 10, width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.8)', alignItems: 'center', justifyContent: 'center' },
+  closeBtn: { position: 'absolute', left: 16, zIndex: 10, width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  soundBtn: { position: 'absolute', right: 16, zIndex: 10, width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   content: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
   title: { fontSize: 24, fontWeight: '700', color: theme.textPrimary, textAlign: 'center' },
   subtitle: { fontSize: 15, color: theme.textSecondary, textAlign: 'center', marginTop: 4, marginBottom: 40 },

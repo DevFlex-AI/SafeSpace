@@ -2,16 +2,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, ScrollView, Pressable, StyleSheet, TextInput,
-  KeyboardAvoidingView, Platform, Alert,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import * as Linking from 'expo-linking';
 import Animated, {
-  useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing,
   FadeIn, SlideInRight, SlideInLeft, FadeInDown,
 } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
@@ -20,7 +18,7 @@ import { useApp } from '../../contexts/AppContext';
 import { getAIResponse, getQuickActions } from '../../services/aiChat';
 import { APP_CONFIG } from '../../constants/config';
 import BunsIndicator from '../../components/BunsIndicator';
-import VoiceChatOverlay from '../../components/VoiceChatOverlay';
+import EmergencyButton from '../../components/EmergencyButton';
 
 const SUGGESTED_PROMPTS = [
   { emoji: '😰', label: 'I feel anxious about school', message: 'I feel really anxious about school and I do not know what to do' },
@@ -55,40 +53,6 @@ function CrisisBanner() {
   );
 }
 
-// Emergency 911 button component
-function EmergencyButton() {
-  const insets = useSafeAreaInsets();
-  
-  const handleEmergencyPress = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    Alert.alert(
-      '🚨 Emergency Call',
-      `This will call ${APP_CONFIG.safety.emergency.primary} for immediate emergency assistance. Are you sure you want to proceed?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Call 911', 
-          style: 'destructive',
-          onPress: () => Linking.openURL(`tel:${APP_CONFIG.safety.emergency.primary}`),
-        },
-      ]
-    );
-  };
-
-  return (
-    <Pressable 
-      style={[styles.emergencyBtn, { top: insets.top + 10 }]} 
-      onPress={handleEmergencyPress}
-    >
-      <BlurView intensity={20} tint="light" style={StyleSheet.absoluteFill} />
-      <View style={styles.emergencyBtnContent}>
-        <MaterialIcons name="emergency" size={18} color="#FFF" />
-        <Text style={styles.emergencyText}>911</Text>
-      </View>
-    </Pressable>
-  );
-}
-
 export default function ChatScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -97,7 +61,6 @@ export default function ChatScreen() {
   const [isTyping, setIsTyping] = useState(false);
   const [showCrisis, setShowCrisis] = useState(false);
   const [lastEmotion, setLastEmotion] = useState('neutral');
-  const [showVoiceChat, setShowVoiceChat] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
@@ -146,9 +109,7 @@ export default function ChatScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={styles.container}>
-      {/* Emergency Button */}
       <EmergencyButton />
-
       {/* Header with glass effect */}
       <BlurView intensity={20} tint="light" style={styles.headerGlass}>
         <View style={styles.header}>
@@ -160,7 +121,7 @@ export default function ChatScreen() {
           {/* Voice chat button */}
           <Pressable 
             style={styles.voiceBtn} 
-            onPress={() => { Haptics.selectionAsync(); setShowVoiceChat(true); }}
+            onPress={() => { Haptics.selectionAsync(); router.push('/voice-chat'); }}
           >
             <MaterialIcons name="mic" size={24} color="#FFF" />
           </Pressable>
@@ -250,12 +211,6 @@ export default function ChatScreen() {
           </Pressable>
         </View>
       </KeyboardAvoidingView>
-
-      {/* Voice Chat Overlay */}
-      <VoiceChatOverlay 
-        visible={showVoiceChat} 
-        onClose={() => setShowVoiceChat(false)} 
-      />
     </SafeAreaView>
   );
 }
@@ -289,29 +244,6 @@ const styles = StyleSheet.create({
     backgroundColor: theme.primary,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-
-  // Emergency button
-  emergencyBtn: {
-    position: 'absolute',
-    right: 16,
-    zIndex: 100,
-    borderRadius: 20,
-    overflow: 'hidden',
-  },
-  emergencyBtnContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.error,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 4,
-  },
-  emergencyText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFF',
   },
 
   // Crisis banner with glass

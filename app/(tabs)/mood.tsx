@@ -6,7 +6,6 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import Animated, {
   FadeInDown, FadeIn,
@@ -14,6 +13,8 @@ import Animated, {
 import theme from '../../constants/theme';
 import { useApp } from '../../contexts/AppContext';
 import { MOOD_OPTIONS } from '../../services/mockData';
+import GlassView from '../../components/GlassView';
+import EmergencyButton from '../../components/EmergencyButton';
 
 const JOURNAL_PROMPTS = [
   'What happened today?',
@@ -25,7 +26,7 @@ const JOURNAL_PROMPTS = [
 
 export default function MoodScreen() {
   const insets = useSafeAreaInsets();
-  const { moodHistory, addMoodEntry, todayMood, weeklyAverage } = useApp();
+  const { moodHistory, addMoodEntry, weeklyAverage } = useApp();
   const [selectedMood, setSelectedMood] = useState<number | null>(null);
   const [note, setNote] = useState('');
   const [showInput, setShowInput] = useState(false);
@@ -94,10 +95,11 @@ export default function MoodScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={styles.container}>
+      <EmergencyButton />
       {/* Journal Modal */}
       <Modal visible={showJournal} animationType="slide" transparent onRequestClose={() => setShowJournal(false)}>
         <View style={styles.journalOverlay}>
-          <View style={[styles.journalCard, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+          <GlassView style={[styles.journalCard, { paddingBottom: Math.max(insets.bottom, 20) }]} variant="light" blurIntensity="extreme">
             <View style={styles.journalHeader}>
               <Text style={styles.journalTitle}>
                 {selectedMood !== null ? MOOD_OPTIONS.find(m => m.value === selectedMood)?.emoji : ''} Mood Journal
@@ -135,7 +137,7 @@ export default function MoodScreen() {
                 <Text style={styles.journalSaveBtnText}>Save Entry</Text>
               </Pressable>
             </View>
-          </View>
+          </GlassView>
         </View>
       </Modal>
 
@@ -147,15 +149,15 @@ export default function MoodScreen() {
         {/* Header */}
         <Animated.View entering={FadeInDown.duration(500)} style={styles.header}>
           <Text style={styles.pageTitle}>Mood</Text>
-          <View style={styles.streakBadge}>
-            <MaterialIcons name="emoji-events" size={18} color={theme.warm} />
+          <GlassView style={styles.streakBadge} variant="warm" blurIntensity="light">
+            <MaterialIcons name="emoji-events" size={18} color={theme.warmDark} />
             <Text style={styles.streakText}>{moodStreak} day streak</Text>
-          </View>
+          </GlassView>
         </Animated.View>
 
         {/* Mood Input */}
         <Animated.View entering={FadeInDown.duration(500).delay(100)} style={styles.section}>
-          <View style={styles.moodInputCard}>
+          <GlassView style={styles.moodInputCard} variant="light" blurIntensity="medium">
             <Text style={styles.moodInputTitle}>How are you feeling?</Text>
             <Text style={styles.moodInputSub}>Tap to log your mood</Text>
             <View style={styles.moodGrid}>
@@ -196,13 +198,13 @@ export default function MoodScreen() {
                 </View>
               </Animated.View>
             ) : null}
-          </View>
+          </GlassView>
         </Animated.View>
 
         {/* Weekly Chart */}
         <Animated.View entering={FadeInDown.duration(500).delay(200)} style={styles.section}>
           <Text style={styles.sectionTitle}>This Week</Text>
-          <View style={styles.weekCard}>
+          <GlassView style={styles.weekCard} variant="light" blurIntensity="light">
             <View style={styles.weekBarRow}>
               {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, i) => {
                 const entry = last7Days[i];
@@ -226,13 +228,13 @@ export default function MoodScreen() {
                 </View>
               </View>
             ) : null}
-          </View>
+          </GlassView>
         </Animated.View>
 
         {/* Mood Distribution */}
         <Animated.View entering={FadeInDown.duration(500).delay(300)} style={styles.section}>
           <Text style={styles.sectionTitle}>Mood Patterns</Text>
-          <View style={styles.distCard}>
+          <GlassView style={styles.distCard} variant="light" blurIntensity="light">
             {distribution.map((item) => (
               <View key={item.value} style={styles.distRow}>
                 <Text style={{ fontSize: 22 }}>{item.emoji}</Text>
@@ -251,18 +253,18 @@ export default function MoodScreen() {
                 <Text style={styles.emptyDistText}>Log moods to see patterns</Text>
               </View>
             ) : null}
-          </View>
+          </GlassView>
         </Animated.View>
 
         {/* Today's Entries */}
         <Animated.View entering={FadeInDown.duration(500).delay(400)} style={styles.section}>
-          <Text style={styles.sectionTitle}>Today's Entries</Text>
+          <Text style={styles.sectionTitle}>Today&apos;s Entries</Text>
           {todayEntries.length > 0 ? (
             todayEntries.map((entry) => {
               const isJournal = entry.note.startsWith('[Journal]');
               const displayNote = isJournal ? entry.note.replace('[Journal] ', '') : entry.note;
               return (
-                <View key={entry.id} style={styles.entryCard}>
+                <GlassView key={entry.id} style={styles.entryCard} variant="light" blurIntensity="light">
                   <View style={[styles.entryEmojiBg, { backgroundColor: MOOD_OPTIONS.find(m => m.value === entry.value)?.color + '20' }]}>
                     <Text style={{ fontSize: 24 }}>{entry.emoji}</Text>
                   </View>
@@ -281,7 +283,7 @@ export default function MoodScreen() {
                       {new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </Text>
                   </View>
-                </View>
+                </GlassView>
               );
             })
           ) : (
@@ -295,8 +297,8 @@ export default function MoodScreen() {
         {/* Insight */}
         {weeklyAverage > 0 ? (
           <Animated.View entering={FadeInDown.duration(500).delay(500)} style={styles.section}>
-            <LinearGradient colors={['#EDE9FE', '#F3E8FF']} style={styles.insightCard}>
-              <MaterialIcons name="lightbulb-outline" size={24} color={theme.primary} />
+            <GlassView variant="primary" blurIntensity="light" style={styles.insightCard}>
+              <MaterialIcons name="lightbulb-outline" size={24} color={theme.primaryDark} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.insightTitle}>Weekly Insight</Text>
                 <Text style={styles.insightText}>
@@ -307,7 +309,7 @@ export default function MoodScreen() {
                     : "This week has been tough. Remember, it is okay to ask for help. Consider talking to someone you trust."}
                 </Text>
               </View>
-            </LinearGradient>
+            </GlassView>
           </Animated.View>
         ) : null}
       </ScrollView>
@@ -319,11 +321,11 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.background },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 4 },
   pageTitle: { fontSize: 24, fontWeight: '700', color: theme.textPrimary },
-  streakBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.warmSoft, paddingHorizontal: 12, paddingVertical: 6, borderRadius: theme.radius.full, gap: 4 },
+  streakBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: theme.radius.full, gap: 4 },
   streakText: { fontSize: 13, fontWeight: '600', color: theme.warmDark },
   section: { paddingHorizontal: 20, marginTop: 20 },
   sectionTitle: { fontSize: 18, fontWeight: '700', color: theme.textPrimary, marginBottom: 12 },
-  moodInputCard: { backgroundColor: theme.surface, borderRadius: theme.radius.xl, padding: 24, shadowColor: theme.shadowColor, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },
+  moodInputCard: { padding: 24 },
   moodInputTitle: { fontSize: 20, fontWeight: '700', color: theme.textPrimary, textAlign: 'center' },
   moodInputSub: { fontSize: 14, color: theme.textSecondary, textAlign: 'center', marginTop: 4, marginBottom: 20 },
   moodGrid: { flexDirection: 'row', justifyContent: 'space-between' },
@@ -337,25 +339,25 @@ const styles = StyleSheet.create({
   journalBtnText: { fontSize: 14, fontWeight: '600', color: theme.primary },
   saveBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: theme.primary, borderRadius: theme.radius.md, paddingVertical: 12, gap: 6 },
   saveBtnText: { fontSize: 15, fontWeight: '600', color: '#FFF' },
-
+  
   // Journal Modal
   journalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  journalCard: { backgroundColor: '#FFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: '85%' },
+  journalCard: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: '85%' },
   journalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   journalTitle: { fontSize: 20, fontWeight: '700', color: theme.textPrimary },
   journalClose: { width: 40, height: 40, borderRadius: 20, backgroundColor: theme.backgroundSecondary, alignItems: 'center', justifyContent: 'center' },
   journalPromptCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.primarySoft, borderRadius: theme.radius.md, padding: 14, gap: 10, marginBottom: 16 },
   journalPromptText: { fontSize: 15, fontWeight: '500', color: theme.primaryDark, flex: 1, lineHeight: 22 },
-  journalInput: { backgroundColor: theme.backgroundSecondary, borderRadius: theme.radius.lg, padding: 16, fontSize: 16, color: theme.textPrimary, minHeight: 180, textAlignVertical: 'top', lineHeight: 24 },
+  journalInput: { backgroundColor: 'rgba(255,255,255,0.5)', borderRadius: theme.radius.lg, padding: 16, fontSize: 16, color: theme.textPrimary, minHeight: 180, textAlignVertical: 'top', lineHeight: 24, borderWidth: 1, borderColor: theme.border },
   journalCount: { fontSize: 12, color: theme.textMuted, textAlign: 'right', marginTop: 4 },
   journalActions: { flexDirection: 'row', gap: 12, marginTop: 16 },
   journalSecondaryBtn: { flex: 1, alignItems: 'center', paddingVertical: 14, borderRadius: theme.radius.md, borderWidth: 1.5, borderColor: theme.border },
   journalSecondaryBtnText: { fontSize: 15, fontWeight: '600', color: theme.textSecondary },
   journalSaveBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: theme.primary, borderRadius: theme.radius.md, paddingVertical: 14, gap: 6 },
   journalSaveBtnText: { fontSize: 15, fontWeight: '600', color: '#FFF' },
-
+  
   // Week
-  weekCard: { backgroundColor: theme.surface, borderRadius: theme.radius.lg, padding: 20, shadowColor: theme.shadowColor, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
+  weekCard: { padding: 20 },
   weekBarRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 110 },
   weekBarCol: { alignItems: 'center', justifyContent: 'flex-end', flex: 1, gap: 4 },
   weekBarEmoji: { fontSize: 14 },
@@ -365,7 +367,7 @@ const styles = StyleSheet.create({
   avgLabel: { fontSize: 14, color: theme.textSecondary },
   avgValue: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   avgText: { fontSize: 15, fontWeight: '600', color: theme.textPrimary },
-  distCard: { backgroundColor: theme.surface, borderRadius: theme.radius.lg, padding: 20, shadowColor: theme.shadowColor, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1, gap: 14 },
+  distCard: { padding: 20, gap: 14 },
   distRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   distBarWrap: { flex: 1, gap: 4 },
   distBarBg: { height: 10, backgroundColor: theme.backgroundSecondary, borderRadius: 5, overflow: 'hidden' },
@@ -374,7 +376,7 @@ const styles = StyleSheet.create({
   distPercent: { fontSize: 14, fontWeight: '700', color: theme.textPrimary, width: 36, textAlign: 'right' },
   emptyDist: { alignItems: 'center', paddingVertical: 16 },
   emptyDistText: { fontSize: 14, color: theme.textSecondary, marginTop: 8 },
-  entryCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.surface, borderRadius: theme.radius.md, padding: 14, marginBottom: 8, gap: 12, shadowColor: theme.shadowColor, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.03, shadowRadius: 2, elevation: 1 },
+  entryCard: { flexDirection: 'row', alignItems: 'center', padding: 14, marginBottom: 8, gap: 12 },
   entryEmojiBg: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
   entryInfo: { flex: 1 },
   entryHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -385,7 +387,7 @@ const styles = StyleSheet.create({
   entryTime: { fontSize: 12, color: theme.textMuted, marginTop: 4 },
   noEntries: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: theme.backgroundSecondary, borderRadius: theme.radius.md, padding: 20, gap: 8 },
   noEntriesText: { fontSize: 14, color: theme.textMuted },
-  insightCard: { flexDirection: 'row', alignItems: 'flex-start', borderRadius: theme.radius.lg, padding: 18, gap: 12 },
+  insightCard: { flexDirection: 'row', alignItems: 'flex-start', padding: 18, gap: 12 },
   insightTitle: { fontSize: 15, fontWeight: '700', color: theme.primaryDark, marginBottom: 4 },
   insightText: { fontSize: 14, color: theme.textSecondary, lineHeight: 20 },
 });

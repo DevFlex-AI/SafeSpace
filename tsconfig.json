@@ -6,7 +6,15 @@
       "@/*": [
         "./*"
       ]
-    }
+    },
+    "lib": ["es6", "es2017", "esnext", "dom"],
+    "jsx": "react-native",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "target": "esnext",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true
   },
   "include": [
     "**/*.ts",

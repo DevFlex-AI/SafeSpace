@@ -6,7 +6,6 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import Animated, {
   FadeInDown, FadeIn,
@@ -16,6 +15,8 @@ import theme from '../../constants/theme';
 import { useApp } from '../../contexts/AppContext';
 import { TASK_CATEGORIES } from '../../services/mockData';
 import SwipeableTask from '../../components/SwipeableTask';
+import GlassView from '../../components/GlassView';
+import EmergencyButton from '../../components/EmergencyButton';
 
 export default function TasksScreen() {
   const insets = useSafeAreaInsets();
@@ -46,6 +47,7 @@ export default function TasksScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={styles.container}>
+      <EmergencyButton />
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
@@ -53,7 +55,7 @@ export default function TasksScreen() {
       >
         {/* Header */}
         <Animated.View entering={FadeInDown.duration(500)} style={styles.header}>
-          <Text style={styles.pageTitle}>Today's Tasks</Text>
+          <Text style={styles.pageTitle}>Today&apos;s Tasks</Text>
           <Pressable style={styles.refreshBtn} onPress={() => { Haptics.selectionAsync(); refreshTasks(); }}>
             <MaterialIcons name="refresh" size={22} color={theme.textSecondary} />
           </Pressable>
@@ -61,9 +63,9 @@ export default function TasksScreen() {
 
         {/* Progress Hero */}
         <Animated.View entering={FadeInDown.duration(500).delay(100)}>
-          <LinearGradient
-            colors={allDone ? ['#A8E6CF', '#6BC5A0'] : ['#B8ADE8', '#8B7EC8']}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+          <GlassView
+            variant={allDone ? "accent" : "primary"}
+            blurIntensity="medium"
             style={styles.progressCard}
           >
             <View style={styles.progressRingWrap}>
@@ -89,7 +91,7 @@ export default function TasksScreen() {
                 </View>
               </View>
             </View>
-          </LinearGradient>
+          </GlassView>
         </Animated.View>
 
         {/* Category Filter */}
@@ -148,7 +150,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 4 },
   pageTitle: { fontSize: 24, fontWeight: '700', color: theme.textPrimary },
   refreshBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: theme.backgroundSecondary, alignItems: 'center', justifyContent: 'center' },
-  progressCard: { marginHorizontal: 20, marginTop: 12, borderRadius: theme.radius.xl, padding: 20, flexDirection: 'row', alignItems: 'center', gap: 16 },
+  progressCard: { marginHorizontal: 20, marginTop: 12, padding: 20, flexDirection: 'row', alignItems: 'center', gap: 16 },
   progressRingWrap: { width: 100, height: 100, position: 'relative' },
   progressRingCenter: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   progressPercent: { fontSize: 24, fontWeight: '700', color: '#FFF' },

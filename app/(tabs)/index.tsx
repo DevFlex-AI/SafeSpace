@@ -6,7 +6,6 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Animated, {
@@ -18,6 +17,8 @@ import theme from '../../constants/theme';
 import { useApp } from '../../contexts/AppContext';
 import { MOOD_OPTIONS } from '../../services/mockData';
 import StreakCelebration from '../../components/StreakCelebration';
+import GlassView from '../../components/GlassView';
+import EmergencyButton from '../../components/EmergencyButton';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -55,7 +56,7 @@ export default function HomeScreen() {
       withTiming(8, { duration: 3000, easing: Easing.inOut(Easing.ease) }),
       -1, true
     );
-  }, []);
+  }, [floatAnim]);
   const floatStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: floatAnim.value }],
   }));
@@ -72,6 +73,7 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={styles.container}>
+      <EmergencyButton />
       {/* Streak Celebration Modal */}
       <StreakCelebration
         visible={newStreak !== null}
@@ -90,30 +92,24 @@ export default function HomeScreen() {
             <Text style={styles.greeting}>{getGreeting()}</Text>
             <Text style={styles.name}>{profile.name}</Text>
           </View>
-          <Pressable style={styles.streakBadge} onPress={() => Haptics.selectionAsync()}>
-            <MaterialIcons name="local-fire-department" size={20} color={theme.warm} />
+          <GlassView style={styles.streakBadge} onPress={() => Haptics.selectionAsync()} variant="warm" blurIntensity="light">
+            <MaterialIcons name="local-fire-department" size={20} color={theme.warmDark} />
             <Text style={styles.streakText}>{profile.streak}</Text>
-          </Pressable>
+          </GlassView>
         </Animated.View>
 
         {/* Hero — Mood Check-in */}
         <Animated.View entering={FadeInDown.duration(600).delay(100)}>
           {!todayMood && !showMoodPicker ? (
-            <Pressable onPress={() => { Haptics.selectionAsync(); setShowMoodPicker(true); }}>
-              <LinearGradient
-                colors={['#E8E4F0', '#F0EDF8']}
-                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                style={styles.moodCheckCard}
-              >
-                <Animated.View style={floatStyle}>
-                  <Image source={require('../../assets/images/home-hero.png')} style={styles.heroImage} contentFit="cover" />
-                </Animated.View>
-                <Text style={styles.moodCheckTitle}>How are you feeling?</Text>
-                <Text style={styles.moodCheckSub}>Tap to check in</Text>
-              </LinearGradient>
-            </Pressable>
+            <GlassView onPress={() => { Haptics.selectionAsync(); setShowMoodPicker(true); }} style={styles.moodCheckCard} variant="light" blurIntensity="medium">
+              <Animated.View style={floatStyle}>
+                <Image source={require('../../assets/images/home-hero.png')} style={styles.heroImage} contentFit="cover" />
+              </Animated.View>
+              <Text style={styles.moodCheckTitle}>How are you feeling?</Text>
+              <Text style={styles.moodCheckSub}>Tap to check in</Text>
+            </GlassView>
           ) : showMoodPicker && !todayMood ? (
-            <View style={styles.moodPickerCard}>
+            <GlassView style={styles.moodPickerCard} variant="light" blurIntensity="heavy">
               <Text style={styles.moodPickerTitle}>How are you feeling right now?</Text>
               <View style={styles.moodGrid}>
                 {MOOD_OPTIONS.map((option) => (
@@ -133,12 +129,12 @@ export default function HomeScreen() {
                   </Pressable>
                 ))}
               </View>
-            </View>
+            </GlassView>
           ) : (
-            <LinearGradient
-              colors={[todayMood ? MOOD_OPTIONS.find(m => m.value === todayMood.value)!.color + '30' : '#E8E4F0', '#F8F6FF']}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+            <GlassView
               style={styles.moodDoneCard}
+              variant="primary"
+              blurIntensity="medium"
             >
               <View style={styles.moodDoneLeft}>
                 <Text style={{ fontSize: 42 }}>{todayMood?.emoji}</Text>
@@ -150,7 +146,7 @@ export default function HomeScreen() {
                   Logged at {new Date(todayMood?.timestamp || '').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </Text>
               </View>
-            </LinearGradient>
+            </GlassView>
           )}
         </Animated.View>
 
@@ -158,31 +154,31 @@ export default function HomeScreen() {
         <Animated.View entering={FadeInDown.duration(600).delay(200)} style={styles.section}>
           <Text style={styles.sectionTitle}>Quick Calm</Text>
           <View style={styles.calmRow}>
-            <Pressable style={[styles.calmCard, { backgroundColor: '#EDE9FE' }]} onPress={() => { Haptics.selectionAsync(); router.push('/breathing'); }}>
+            <GlassView style={[styles.calmCard, { backgroundColor: 'rgba(237, 233, 254, 0.5)' }]} onPress={() => { Haptics.selectionAsync(); router.push('/breathing'); }} variant="light" blurIntensity="light">
               <MaterialIcons name="air" size={32} color={theme.primary} />
               <Text style={styles.calmLabel}>Breathe</Text>
               <Text style={styles.calmSub}>4-4-6 pattern</Text>
-            </Pressable>
-            <Pressable style={[styles.calmCard, { backgroundColor: '#D1FAE5' }]} onPress={() => { Haptics.selectionAsync(); router.push('/grounding'); }}>
+            </GlassView>
+            <GlassView style={[styles.calmCard, { backgroundColor: 'rgba(209, 250, 229, 0.5)' }]} onPress={() => { Haptics.selectionAsync(); router.push('/grounding'); }} variant="light" blurIntensity="light">
               <MaterialIcons name="grass" size={32} color={theme.accent} />
               <Text style={styles.calmLabel}>Ground</Text>
               <Text style={styles.calmSub}>5-4-3-2-1</Text>
-            </Pressable>
-            <Pressable style={[styles.calmCard, { backgroundColor: '#FEF3C7' }]} onPress={() => { Haptics.selectionAsync(); router.push('/(tabs)/chat'); }}>
+            </GlassView>
+            <GlassView style={[styles.calmCard, { backgroundColor: 'rgba(254, 243, 199, 0.5)' }]} onPress={() => { Haptics.selectionAsync(); router.push('/(tabs)/chat'); }} variant="light" blurIntensity="light">
               <MaterialIcons name="chat-bubble-outline" size={32} color={theme.warm} />
               <Text style={styles.calmLabel}>Talk</Text>
               <Text style={styles.calmSub}>Chat now</Text>
-            </Pressable>
+            </GlassView>
           </View>
         </Animated.View>
 
         {/* Tasks Preview */}
         <Animated.View entering={FadeInDown.duration(600).delay(300)} style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Today's Tasks</Text>
+            <Text style={styles.sectionTitle}>Today&apos;s Tasks</Text>
             <Pressable onPress={() => router.push('/(tabs)/tasks')}><Text style={styles.seeAll}>See all</Text></Pressable>
           </View>
-          <View style={styles.taskProgressRow}>
+          <GlassView style={styles.taskProgressRow} variant="light" blurIntensity="light">
             <ProgressRing progress={taskProgress} size={60} strokeWidth={5} color={theme.accent} />
             <View style={styles.taskProgressInfo}>
               <Text style={styles.taskProgressValue}>{completedToday}/{dailyTasks.length}</Text>
@@ -192,22 +188,22 @@ export default function HomeScreen() {
               <MaterialIcons name="star" size={16} color={theme.accent} />
               <Text style={styles.xpText}>+{completedToday * 15} XP</Text>
             </View>
-          </View>
+          </GlassView>
           {dailyTasks.slice(0, 3).map((task) => (
-            <Pressable key={task.id} style={[styles.taskItem, task.completed && styles.taskItemDone]} onPress={() => router.push('/(tabs)/tasks')}>
+            <GlassView key={task.id} style={[styles.taskItem, task.completed && styles.taskItemDone]} onPress={() => router.push('/(tabs)/tasks')} variant="light" blurIntensity="light">
               <View style={[styles.taskCheck, task.completed && styles.taskCheckDone]}>
                 {task.completed ? <MaterialIcons name="check" size={14} color="#FFF" /> : null}
               </View>
               <Text style={[styles.taskTitle, task.completed && styles.taskTitleDone]}>{task.title}</Text>
               <Text style={styles.taskXp}>+{task.xp}</Text>
-            </Pressable>
+            </GlassView>
           ))}
         </Animated.View>
 
         {/* Weekly Mood Trend */}
         <Animated.View entering={FadeInDown.duration(600).delay(400)} style={styles.section}>
-          <Text style={styles.sectionTitle}>This Week's Mood</Text>
-          <View style={styles.moodTrendCard}>
+          <Text style={styles.sectionTitle}>This Week&apos;s Mood</Text>
+          <GlassView style={styles.moodTrendCard} variant="light" blurIntensity="light">
             <View style={styles.moodBarRow}>
               {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, i) => {
                 const entry = recentMoods[i];
@@ -228,12 +224,12 @@ export default function HomeScreen() {
                 {weeklyAverage > 0 ? MOOD_OPTIONS.find(m => m.value === Math.round(weeklyAverage))?.label : 'No data'}
               </Text>
             </View>
-          </View>
+          </GlassView>
         </Animated.View>
 
         {/* Level Card */}
         <Animated.View entering={FadeInDown.duration(600).delay(500)} style={styles.section}>
-          <LinearGradient colors={['#B8ADE8', '#8B7EC8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.levelCard}>
+          <GlassView style={styles.levelCard} variant="primary" blurIntensity="medium">
             <View style={styles.levelLeft}>
               <Text style={styles.levelLabel}>LEVEL</Text>
               <Text style={styles.levelValue}>{profile.level}</Text>
@@ -244,7 +240,7 @@ export default function HomeScreen() {
               </View>
               <Text style={styles.xpBarText}>{profile.xp}/100 XP to next level</Text>
             </View>
-          </LinearGradient>
+          </GlassView>
         </Animated.View>
       </ScrollView>
     </SafeAreaView>
@@ -256,20 +252,20 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
   greeting: { fontSize: 14, fontWeight: '500', color: theme.textSecondary },
   name: { fontSize: 24, fontWeight: '700', color: theme.textPrimary, marginTop: 2 },
-  streakBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.warmSoft, paddingHorizontal: 14, paddingVertical: 8, borderRadius: theme.radius.full, gap: 4 },
+  streakBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 8, borderRadius: theme.radius.full, gap: 4 },
   streakText: { fontSize: 16, fontWeight: '700', color: theme.warmDark },
-  moodCheckCard: { marginHorizontal: 20, marginTop: 8, borderRadius: theme.radius.xl, padding: 24, alignItems: 'center', overflow: 'hidden' },
+  moodCheckCard: { marginHorizontal: 20, marginTop: 8, padding: 24, alignItems: 'center' },
   heroImage: { width: SCREEN_WIDTH - 80, height: 120, borderRadius: theme.radius.lg, marginBottom: 16 },
   moodCheckTitle: { fontSize: 20, fontWeight: '700', color: theme.textPrimary },
   moodCheckSub: { fontSize: 14, color: theme.textSecondary, marginTop: 4 },
-  moodPickerCard: { marginHorizontal: 20, marginTop: 8, backgroundColor: theme.surface, borderRadius: theme.radius.xl, padding: 24, shadowColor: theme.shadowColor, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },
+  moodPickerCard: { marginHorizontal: 20, marginTop: 8, padding: 24 },
   moodPickerTitle: { fontSize: 18, fontWeight: '600', color: theme.textPrimary, textAlign: 'center', marginBottom: 20 },
   moodGrid: { flexDirection: 'row', justifyContent: 'space-around' },
   moodOption: { alignItems: 'center', gap: 8 },
   moodEmojiCircle: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
   moodEmoji: { fontSize: 28 },
   moodLabel: { fontSize: 12, fontWeight: '600', color: theme.textSecondary },
-  moodDoneCard: { marginHorizontal: 20, marginTop: 8, borderRadius: theme.radius.xl, padding: 20, flexDirection: 'row', alignItems: 'center', gap: 16 },
+  moodDoneCard: { marginHorizontal: 20, marginTop: 8, padding: 20, flexDirection: 'row', alignItems: 'center', gap: 16 },
   moodDoneLeft: { width: 64, height: 64, borderRadius: 32, backgroundColor: 'rgba(255,255,255,0.6)', alignItems: 'center', justifyContent: 'center' },
   moodDoneRight: { flex: 1 },
   moodDoneLabel: { fontSize: 13, color: theme.textSecondary, fontWeight: '500' },
@@ -280,23 +276,23 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 18, fontWeight: '700', color: theme.textPrimary, marginBottom: 12 },
   seeAll: { fontSize: 14, fontWeight: '600', color: theme.primary, marginBottom: 12 },
   calmRow: { flexDirection: 'row', gap: 12 },
-  calmCard: { flex: 1, borderRadius: theme.radius.lg, padding: 16, alignItems: 'center', gap: 8 },
+  calmCard: { flex: 1, padding: 16, alignItems: 'center', gap: 8 },
   calmLabel: { fontSize: 14, fontWeight: '600', color: theme.textPrimary },
   calmSub: { fontSize: 11, color: theme.textSecondary },
-  taskProgressRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.surface, borderRadius: theme.radius.lg, padding: 16, marginBottom: 12, gap: 14, shadowColor: theme.shadowColor, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
+  taskProgressRow: { flexDirection: 'row', alignItems: 'center', padding: 16, marginBottom: 12, gap: 14 },
   taskProgressInfo: { flex: 1 },
   taskProgressValue: { fontSize: 24, fontWeight: '700', color: theme.textPrimary },
   taskProgressLabel: { fontSize: 13, color: theme.textSecondary },
   xpBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.accentSoft, paddingHorizontal: 10, paddingVertical: 6, borderRadius: theme.radius.full, gap: 4 },
   xpText: { fontSize: 13, fontWeight: '600', color: theme.accentDark },
-  taskItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.surface, borderRadius: theme.radius.md, padding: 14, marginBottom: 8, gap: 12 },
+  taskItem: { flexDirection: 'row', alignItems: 'center', padding: 14, marginBottom: 8, gap: 12 },
   taskItemDone: { opacity: 0.6 },
   taskCheck: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: theme.border, alignItems: 'center', justifyContent: 'center' },
   taskCheckDone: { backgroundColor: theme.accent, borderColor: theme.accent },
   taskTitle: { flex: 1, fontSize: 15, fontWeight: '500', color: theme.textPrimary },
   taskTitleDone: { textDecorationLine: 'line-through', color: theme.textMuted },
   taskXp: { fontSize: 13, fontWeight: '600', color: theme.accent },
-  moodTrendCard: { backgroundColor: theme.surface, borderRadius: theme.radius.lg, padding: 20, shadowColor: theme.shadowColor, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
+  moodTrendCard: { padding: 20 },
   moodBarRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 80, marginBottom: 12 },
   moodBarCol: { alignItems: 'center', justifyContent: 'flex-end', flex: 1, gap: 6 },
   moodBar: { width: 24, borderRadius: 12, minHeight: 8 },
@@ -304,7 +300,7 @@ const styles = StyleSheet.create({
   weeklyAvgRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: theme.borderLight, paddingTop: 12 },
   weeklyAvgLabel: { fontSize: 13, color: theme.textSecondary },
   weeklyAvgValue: { fontSize: 14, fontWeight: '600', color: theme.textPrimary },
-  levelCard: { borderRadius: theme.radius.xl, padding: 20, flexDirection: 'row', alignItems: 'center', gap: 20 },
+  levelCard: { padding: 20, flexDirection: 'row', alignItems: 'center', gap: 20 },
   levelLeft: { alignItems: 'center' },
   levelLabel: { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.7)', letterSpacing: 1 },
   levelValue: { fontSize: 36, fontWeight: '700', color: '#FFF' },

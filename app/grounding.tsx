@@ -1,18 +1,18 @@
 // Grounding Exercise — 5-4-3-2-1 sensory technique
 import React, { useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Animated, {
-  FadeIn, FadeInDown, FadeInUp, SlideInRight,
-  useSharedValue, useAnimatedStyle, withTiming, withSpring,
+  FadeIn, FadeInDown,
+  useSharedValue, useAnimatedStyle, withTiming,
 } from 'react-native-reanimated';
 import theme from '../constants/theme';
 import { APP_CONFIG } from '../constants/config';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+import GlassView from '../components/GlassView';
+import EmergencyButton from '../components/EmergencyButton';
 
 const STEP_COLORS = ['#8B7EC8', '#87CEEB', '#6BC5A0', '#F2D06B', '#F2A977'];
 const STEP_BG_COLORS = ['#EDE9FE', '#E0F2FE', '#D1FAE5', '#FEF3C7', '#FDDCBF'];
@@ -74,18 +74,21 @@ export default function GroundingScreen() {
   if (isDone) {
     return (
       <View style={[styles.container, { backgroundColor: '#D1FAE5' }]}>
-        <Pressable
+        <EmergencyButton />
+        <GlassView
           style={[styles.closeBtn, { top: insets.top + 12 }]}
           onPress={() => router.back()}
+          variant="light"
+          blurIntensity="medium"
         >
           <MaterialIcons name="close" size={24} color={theme.textSecondary} />
-        </Pressable>
+        </GlassView>
 
         <Animated.View entering={FadeIn.duration(600)} style={styles.doneContent}>
           <View style={styles.doneIcon}>
             <MaterialIcons name="check-circle" size={64} color={theme.accent} />
           </View>
-          <Text style={styles.doneTitle}>You're grounded</Text>
+          <Text style={styles.doneTitle}>You&apos;re grounded</Text>
           <Text style={styles.doneDesc}>
             You just engaged all 5 senses to bring yourself back to the present moment. Great work.
           </Text>
@@ -104,13 +107,16 @@ export default function GroundingScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: stepBg }]}>
+      <EmergencyButton />
       {/* Close */}
-      <Pressable
+      <GlassView
         style={[styles.closeBtn, { top: insets.top + 12 }]}
         onPress={() => router.back()}
+        variant="light"
+        blurIntensity="medium"
       >
         <MaterialIcons name="close" size={24} color={theme.textSecondary} />
-      </Pressable>
+      </GlassView>
 
       {/* Progress Bar */}
       <View style={[styles.progressBar, { top: insets.top + 64 }]}>
@@ -218,7 +224,6 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.8)',
     alignItems: 'center',
     justifyContent: 'center',
   },
