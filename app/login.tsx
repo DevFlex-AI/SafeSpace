@@ -1,5 +1,6 @@
 // SafeSpace Login/Register — Single auth page with OTP + Password
-import React, { useState, useRef } from 'react';
+// Liquid Glass branding entry animation
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, Pressable, StyleSheet, KeyboardAvoidingView,
   Platform, ScrollView, Dimensions,
@@ -9,13 +10,102 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
+import Animated, { 
+  FadeIn, FadeInDown, FadeInUp, FadeOut,
+  useSharedValue, useAnimatedStyle, withSpring, withTiming,
+  withRepeat, withSequence, Easing,
+} from 'react-native-reanimated';
+import { BlurView } from 'expo-blur';
 import { useAuth, useAlert } from '@/template';
 import theme from '../constants/theme';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
 type AuthStep = 'welcome' | 'login' | 'register' | 'otp';
+
+// Liquid Glass animated logo component
+function LiquidGlassLogo() {
+  const scale = useSharedValue(0);
+  const opacity = useSharedValue(0);
+  const liquid1 = useSharedValue(0);
+  const liquid2 = useSharedValue(0);
+  const liquid3 = useSharedValue(0);
+
+  useEffect(() => {
+    // Entry animation
+    scale.value = withSpring(1, { damping: 12, stiffness: 100 });
+    opacity.value = withTiming(1, { duration: 400 });
+    
+    // Continuous liquid motion
+    liquid1.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0, { duration: 2000, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1,
+      true
+    );
+    liquid2.value = withRepeat(
+      withSequence(
+        withTiming(0, { duration: 2500, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1, { duration: 2500, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1,
+      true
+    );
+    liquid3.value = withRepeat(
+      withSequence(
+        withTiming(0.5, { duration: 1800, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0, { duration: 1800, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1,
+      true
+    );
+  }, []);
+
+  const containerStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    opacity: opacity.value,
+  }));
+
+  const blob1Style = useAnimatedStyle(() => ({
+    transform: [{ 
+      translateX: Math.sin(liquid1.value * Math.PI * 2) * 15 
+    }],
+    opacity: 0.6 + liquid1.value * 0.4,
+  }));
+
+  const blob2Style = useAnimatedStyle(() => ({
+    transform: [{ 
+      translateY: Math.cos(liquid2.value * Math.PI * 2) * 10 
+    }],
+    opacity: 0.5 + liquid2.value * 0.3,
+  }));
+
+  const blob3Style = useAnimatedStyle(() => ({
+    transform: [{ 
+      scale: 1 + liquid3.value * 0.2 
+    }],
+    opacity: 0.4 + liquid3.value * 0.3,
+  }));
+
+  return (
+    <Animated.View style={[styles.liquidLogoContainer, containerStyle]}>
+      {/* Liquid background blobs */}
+      <Animated.View style={[styles.liquidBlob, styles.liquidBlob1, blob1Style]} />
+      <Animated.View style={[styles.liquidBlob, styles.liquidBlob2, blob2Style]} />
+      <Animated.View style={[styles.liquidBlob, styles.liquidBlob3, blob3Style]} />
+      
+      {/* Glass overlay */}
+      <BlurView intensity={15} tint="light" style={styles.liquidGlassOverlay} />
+      
+      {/* Logo icon */}
+      <View style={styles.liquidLogoIcon}>
+        <MaterialIcons name="self-improvement" size={56} color={theme.primary} />
+      </View>
+    </Animated.View>
+  );
+}
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
@@ -91,12 +181,9 @@ export default function LoginScreen() {
           contentContainerStyle={styles.welcomeContent}
           showsVerticalScrollIndicator={false}
         >
+          {/* Liquid Glass Animated Logo */}
           <Animated.View entering={FadeInDown.duration(600)} style={styles.welcomeHero}>
-            <Image
-              source={require('../assets/images/chat-companion.png')}
-              style={styles.welcomeImage}
-              contentFit="contain"
-            />
+            <LiquidGlassLogo />
           </Animated.View>
 
           <Animated.View entering={FadeInDown.duration(600).delay(200)}>
@@ -347,6 +434,54 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.background,
+  },
+
+  // Liquid Glass Logo Animation
+  liquidLogoContainer: {
+    width: 140,
+    height: 140,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  liquidBlob: {
+    position: 'absolute',
+    borderRadius: 100,
+  },
+  liquidBlob1: {
+    width: 100,
+    height: 100,
+    backgroundColor: theme.primaryLight,
+    top: 20,
+    left: 20,
+  },
+  liquidBlob2: {
+    width: 70,
+    height: 70,
+    backgroundColor: theme.accentLight,
+    bottom: 25,
+    right: 15,
+  },
+  liquidBlob3: {
+    width: 50,
+    height: 50,
+    backgroundColor: theme.warmLight,
+    top: 10,
+    right: 30,
+  },
+  liquidGlassOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 70,
+  },
+  liquidLogoIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.9)',
   },
 
   // Welcome

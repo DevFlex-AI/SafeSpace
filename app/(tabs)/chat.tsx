@@ -1,22 +1,26 @@
-// Chat Screen — AI companion with safety layer + suggested prompts
+// Chat Screen — AI companion with safety layer + glassmorphism + voice chat
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, ScrollView, Pressable, StyleSheet, TextInput,
-  KeyboardAvoidingView, Platform,
+  KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import * as Linking from 'expo-linking';
 import Animated, {
   useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing,
   FadeIn, SlideInRight, SlideInLeft, FadeInDown,
 } from 'react-native-reanimated';
+import { BlurView } from 'expo-blur';
 import theme from '../../constants/theme';
 import { useApp } from '../../contexts/AppContext';
 import { getAIResponse, getQuickActions } from '../../services/aiChat';
 import { APP_CONFIG } from '../../constants/config';
+import BunsIndicator from '../../components/BunsIndicator';
+import VoiceChatOverlay from '../../components/VoiceChatOverlay';
 
 const SUGGESTED_PROMPTS = [
   { emoji: '😰', label: 'I feel anxious about school', message: 'I feel really anxious about school and I do not know what to do' },
@@ -28,44 +32,60 @@ const SUGGESTED_PROMPTS = [
 ];
 
 function TypingIndicator() {
-  const dot1 = useSharedValue(0);
-  const dot2 = useSharedValue(0);
-  const dot3 = useSharedValue(0);
-  useEffect(() => {
-    dot1.value = withRepeat(withTiming(-6, { duration: 400, easing: Easing.inOut(Easing.ease) }), -1, true);
-    setTimeout(() => { dot2.value = withRepeat(withTiming(-6, { duration: 400, easing: Easing.inOut(Easing.ease) }), -1, true); }, 150);
-    setTimeout(() => { dot3.value = withRepeat(withTiming(-6, { duration: 400, easing: Easing.inOut(Easing.ease) }), -1, true); }, 300);
-  }, []);
-  const s1 = useAnimatedStyle(() => ({ transform: [{ translateY: dot1.value }] }));
-  const s2 = useAnimatedStyle(() => ({ transform: [{ translateY: dot2.value }] }));
-  const s3 = useAnimatedStyle(() => ({ transform: [{ translateY: dot3.value }] }));
-  return (
-    <View style={styles.typingContainer}>
-      <View style={styles.aiBubble}>
-        <View style={styles.typingDots}>
-          <Animated.View style={[styles.dot, s1]} />
-          <Animated.View style={[styles.dot, s2]} />
-          <Animated.View style={[styles.dot, s3]} />
-        </View>
-      </View>
-    </View>
-  );
+  return <BunsIndicator />;
 }
 
 function CrisisBanner() {
   return (
     <Animated.View entering={FadeIn.duration(300)} style={styles.crisisBanner}>
-      <MaterialIcons name="warning" size={20} color="#FFF" />
-      <View style={{ flex: 1 }}>
-        <Text style={styles.crisisTitle}>You are not alone</Text>
-        <Text style={styles.crisisText}>
-          {'\u{1F4DE}'} {APP_CONFIG.safety.crisisResources.phoneName}: {APP_CONFIG.safety.crisisResources.phone}
-        </Text>
-        <Text style={styles.crisisText}>
-          {'\u{1F4AC}'} {APP_CONFIG.safety.crisisResources.name}: {APP_CONFIG.safety.crisisResources.action}
-        </Text>
+      <BlurView intensity={15} tint="light" style={StyleSheet.absoluteFill} />
+      <View style={styles.crisisContent}>
+        <MaterialIcons name="warning" size={20} color="#FFF" />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.crisisTitle}>You are not alone</Text>
+          <Text style={styles.crisisText}>
+            {'\u{1F4DE}'} {APP_CONFIG.safety.crisisResources.phoneName}: {APP_CONFIG.safety.crisisResources.phone}
+          </Text>
+          <Text style={styles.crisisText}>
+            {'\u{1F4AC}'} {APP_CONFIG.safety.crisisResources.name}: {APP_CONFIG.safety.crisisResources.action}
+          </Text>
+        </View>
       </View>
     </Animated.View>
+  );
+}
+
+// Emergency 911 button component
+function EmergencyButton() {
+  const insets = useSafeAreaInsets();
+  
+  const handleEmergencyPress = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    Alert.alert(
+      '🚨 Emergency Call',
+      `This will call ${APP_CONFIG.safety.emergency.primary} for immediate emergency assistance. Are you sure you want to proceed?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Call 911', 
+          style: 'destructive',
+          onPress: () => Linking.openURL(`tel:${APP_CONFIG.safety.emergency.primary}`),
+        },
+      ]
+    );
+  };
+
+  return (
+    <Pressable 
+      style={[styles.emergencyBtn, { top: insets.top + 10 }]} 
+      onPress={handleEmergencyPress}
+    >
+      <BlurView intensity={20} tint="light" style={StyleSheet.absoluteFill} />
+      <View style={styles.emergencyBtnContent}>
+        <MaterialIcons name="emergency" size={18} color="#FFF" />
+        <Text style={styles.emergencyText}>911</Text>
+      </View>
+    </Pressable>
   );
 }
 
@@ -77,6 +97,7 @@ export default function ChatScreen() {
   const [isTyping, setIsTyping] = useState(false);
   const [showCrisis, setShowCrisis] = useState(false);
   const [lastEmotion, setLastEmotion] = useState('neutral');
+  const [showVoiceChat, setShowVoiceChat] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
@@ -125,13 +146,26 @@ export default function ChatScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={styles.container}>
-      <View style={styles.header}>
-        <Image source={require('../../assets/images/chat-companion.png')} style={styles.avatar} contentFit="cover" />
-        <View>
-          <Text style={styles.headerTitle}>SafeSpace</Text>
-          <Text style={styles.headerSub}>Always here for you</Text>
+      {/* Emergency Button */}
+      <EmergencyButton />
+
+      {/* Header with glass effect */}
+      <BlurView intensity={20} tint="light" style={styles.headerGlass}>
+        <View style={styles.header}>
+          <Image source={require('../../assets/images/chat-companion.png')} style={styles.avatar} contentFit="cover" />
+          <View style={styles.headerInfo}>
+            <Text style={styles.headerTitle}>SafeSpace</Text>
+            <Text style={styles.headerSub}>Always here for you</Text>
+          </View>
+          {/* Voice chat button */}
+          <Pressable 
+            style={styles.voiceBtn} 
+            onPress={() => { Haptics.selectionAsync(); setShowVoiceChat(true); }}
+          >
+            <MaterialIcons name="mic" size={24} color="#FFF" />
+          </Pressable>
         </View>
-      </View>
+      </BlurView>
 
       {showCrisis ? <CrisisBanner /> : null}
 
@@ -216,47 +250,177 @@ export default function ChatScreen() {
           </Pressable>
         </View>
       </KeyboardAvoidingView>
+
+      {/* Voice Chat Overlay */}
+      <VoiceChatOverlay 
+        visible={showVoiceChat} 
+        onClose={() => setShowVoiceChat(false)} 
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.background },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.border, backgroundColor: theme.surface, gap: 12 },
+  
+  // Header with glass
+  headerGlass: {
+    borderBottomWidth: 1,
+    borderBottomColor: theme.border,
+  },
+  header: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    paddingHorizontal: 20, 
+    paddingVertical: 12, 
+    backgroundColor: 'rgba(255,255,255,0.5)',
+    gap: 12,
+  },
+  headerInfo: { flex: 1 },
   avatar: { width: 40, height: 40, borderRadius: 20 },
   headerTitle: { fontSize: 17, fontWeight: '700', color: theme.textPrimary },
   headerSub: { fontSize: 12, color: theme.textSecondary },
-  crisisBanner: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#E88B8B', padding: 14, gap: 10, marginHorizontal: 12, marginTop: 8, borderRadius: theme.radius.md },
+  
+  // Voice chat button
+  voiceBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: theme.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // Emergency button
+  emergencyBtn: {
+    position: 'absolute',
+    right: 16,
+    zIndex: 100,
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  emergencyBtnContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.error,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 4,
+  },
+  emergencyText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFF',
+  },
+
+  // Crisis banner with glass
+  crisisBanner: { 
+    flexDirection: 'row', 
+    alignItems: 'flex-start', 
+    backgroundColor: theme.error,
+    padding: 14, 
+    gap: 10, 
+    marginHorizontal: 12, 
+    marginTop: 8, 
+    borderRadius: theme.radius.md,
+    overflow: 'hidden',
+  },
+  crisisContent: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, flex: 1 },
   crisisTitle: { fontSize: 14, fontWeight: '700', color: '#FFF', marginBottom: 4 },
   crisisText: { fontSize: 13, color: '#FFF', lineHeight: 20 },
+
   messageList: { padding: 16, paddingBottom: 8 },
   messageRow: { marginBottom: 12, maxWidth: '82%' },
   userRow: { alignSelf: 'flex-end' },
   aiRow: { alignSelf: 'flex-start' },
-  userBubble: { backgroundColor: theme.primary, borderRadius: 20, borderBottomRightRadius: 6, paddingHorizontal: 16, paddingVertical: 12 },
-  aiBubble: { backgroundColor: theme.surface, borderRadius: 20, borderBottomLeftRadius: 6, paddingHorizontal: 16, paddingVertical: 12, shadowColor: theme.shadowColor, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1 },
+  userBubble: { 
+    backgroundColor: theme.primary, 
+    borderRadius: 20, 
+    borderBottomRightRadius: 6, 
+    paddingHorizontal: 16, 
+    paddingVertical: 12,
+  },
+  aiBubble: { 
+    backgroundColor: 'rgba(255,255,255,0.7)', 
+    borderRadius: 20, 
+    borderBottomLeftRadius: 6, 
+    paddingHorizontal: 16, 
+    paddingVertical: 12, 
+    shadowColor: theme.shadowColor, 
+    shadowOffset: { width: 0, height: 1 }, 
+    shadowOpacity: 0.08, 
+    shadowRadius: 4, 
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.5)',
+  },
   userText: { fontSize: 16, color: '#FFF', lineHeight: 22 },
   aiText: { fontSize: 16, color: theme.textPrimary, lineHeight: 22 },
   timestamp: { fontSize: 11, color: theme.textMuted, marginTop: 4 },
   timestampRight: { textAlign: 'right' },
   timestampLeft: { textAlign: 'left' },
-  typingContainer: { alignSelf: 'flex-start', marginBottom: 8 },
-  typingDots: { flexDirection: 'row', gap: 4, alignItems: 'center', height: 20 },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.textMuted },
 
   // Suggested prompts
   suggestedSection: { marginTop: 8, marginBottom: 16 },
   suggestedTitle: { fontSize: 14, fontWeight: '500', color: theme.textSecondary, marginBottom: 12, textAlign: 'center' },
   suggestedGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  suggestedCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.surface, borderRadius: theme.radius.lg, paddingHorizontal: 14, paddingVertical: 12, gap: 8, borderWidth: 1, borderColor: theme.border, width: '48%' as any, minWidth: 150 },
+  suggestedCard: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    backgroundColor: 'rgba(255,255,255,0.6)', 
+    borderRadius: theme.radius.lg, 
+    paddingHorizontal: 14, 
+    paddingVertical: 12, 
+    gap: 8, 
+    borderWidth: 1, 
+    borderColor: 'rgba(255,255,255,0.8)',
+    width: '48%' as any, 
+    minWidth: 150,
+  },
   suggestedEmoji: { fontSize: 20 },
   suggestedLabel: { fontSize: 13, fontWeight: '500', color: theme.textPrimary, flex: 1 },
 
   quickActions: { paddingHorizontal: 16, paddingVertical: 8, gap: 8 },
-  quickActionBtn: { backgroundColor: theme.primarySoft, paddingHorizontal: 16, paddingVertical: 10, borderRadius: theme.radius.full, borderWidth: 1, borderColor: theme.primary + '30' },
+  quickActionBtn: { 
+    backgroundColor: 'rgba(139,126,200,0.15)', 
+    paddingHorizontal: 16, 
+    paddingVertical: 10, 
+    borderRadius: theme.radius.full, 
+    borderWidth: 1, 
+    borderColor: 'rgba(139,126,200,0.3)' 
+  },
   quickActionText: { fontSize: 14, fontWeight: '500', color: theme.primaryDark },
-  inputBar: { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 12, paddingTop: 8, backgroundColor: theme.surface, borderTopWidth: 1, borderTopColor: theme.border, gap: 8 },
-  input: { flex: 1, backgroundColor: theme.backgroundSecondary, borderRadius: theme.radius.xl, paddingHorizontal: 16, paddingVertical: 12, fontSize: 16, color: theme.textPrimary, maxHeight: 100, minHeight: 44 },
-  sendBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center' },
+  inputBar: { 
+    flexDirection: 'row', 
+    alignItems: 'flex-end', 
+    paddingHorizontal: 12, 
+    paddingTop: 8, 
+    backgroundColor: 'rgba(255,255,255,0.6)', 
+    borderTopWidth: 1, 
+    borderTopColor: theme.border, 
+    gap: 8 
+  },
+  input: { 
+    flex: 1, 
+    backgroundColor: 'rgba(255,255,255,0.8)', 
+    borderRadius: theme.radius.xl, 
+    paddingHorizontal: 16, 
+    paddingVertical: 12, 
+    fontSize: 16, 
+    color: theme.textPrimary, 
+    maxHeight: 100, 
+    minHeight: 44,
+    borderWidth: 1,
+    borderColor: theme.border,
+  },
+  sendBtn: { 
+    width: 44, 
+    height: 44, 
+    borderRadius: 22, 
+    backgroundColor: theme.primary, 
+    alignItems: 'center', 
+    justifyContent: 'center' 
+  },
   sendBtnDisabled: { backgroundColor: theme.backgroundSecondary },
 });

@@ -2,7 +2,7 @@
 
 export const APP_CONFIG = {
   name: 'SafeSpace',
-  version: '1.0.0',
+  version: '1.1.0',
   description: 'Your calm companion for daily emotional support',
 
   // Chat
@@ -46,11 +46,13 @@ export const APP_CONFIG = {
     ],
   },
 
-  // Safety keywords for escalation
+  // Safety keywords for escalation (expanded for comprehensive coverage)
   safety: {
     distressKeywords: [
       'hurt myself', 'kill myself', 'suicide', 'self harm', 'don\'t want to live',
       'end it all', 'no point', 'want to die', 'cutting', 'overdose',
+      'better off dead', 'can\'t go on', 'not worth living', 'hurt me', 'kill me',
+      'end it', 'make it stop', 'permanent solution', 'say goodbye', 'final',
     ],
     crisisResources: {
       name: 'Crisis Text Line',
@@ -58,6 +60,20 @@ export const APP_CONFIG = {
       phone: '988',
       phoneName: 'Suicide & Crisis Lifeline',
     },
+    // Emergency services
+    emergency: {
+      primary: '911',
+      description: 'Emergency Services',
+      requiresConfirmation: true,
+    },
+  },
+
+  // Sensory monitoring for autism/habit interruption
+  sensory: {
+    enabled: true,
+    defaultSensitivity: 'medium',
+    interventionDelayMs: 2000,
+    cooldownMs: 30000,
   },
 
   // Accessibility
@@ -66,6 +82,19 @@ export const APP_CONFIG = {
     largeTextScale: 1.3,
     reducedMotion: false,
     highContrast: false,
+  },
+
+  // Professional system prompt for AI
+  systemPrompt: {
+    role: 'Professional Mental Wellness Companion',
+    tone: 'Empathetic, clinically-informed, supportive',
+    boundaries: [
+      'I am not a licensed therapist, but I can provide support and resources',
+      'If someone is in crisis, I will prioritize connecting them with professional help',
+      'I acknowledge emotions without judgment',
+      'I encourage professional help when appropriate',
+      'I respect user autonomy and never lecture',
+    ],
   },
 };
 
