@@ -183,6 +183,17 @@ const RESPONSES: Record<string, Record<string, string[]>> = {
       "Let's find some calm together. Which exercise calls to you — breathing or grounding?",
     ],
   },
+  urge: {
+    general: [
+      "I hear you, and noticing the urge is already the hardest step. You are not your urge — you are the one watching it. Want to try surfing it together?",
+      "That pull is real, and so is your ability to ride it out. The urge peaks and then fades — every single time. Can I walk you through some redirection?",
+      "You reached out instead of acting on it. That takes so much strength. Let us try to surf this wave — tap the Urge Surfing tool and I will be right here.",
+    ],
+    seeking_advice: [
+      "One thing that really helps is keeping your hands busy the moment you notice the urge. A stress ball, a hair tie to snap, or even cold water on your wrists can break the pattern.",
+      "Urge surfing is the technique — you observe the urge like a wave, let it rise without acting, and watch it fade. It usually peaks within 90 seconds. Want to try the timer together?",
+    ],
+  },
 };
 
 // Parse user input for emotion and intent
@@ -206,6 +217,7 @@ function parseInput(text: string): ParsedInput {
   else if (/overwhelm|too much|can't cope/.test(lower)) emotion = 'overwhelmed';
   else if (/panic|freaking out|losing control/.test(lower)) emotion = 'panic';
   else if (/relationship|friends|family| boyfriend| girlfriend|parents/.test(lower)) emotion = 'relationships';
+  else if (/urge|pull|pulling|trich|hair pull|pick|picking|fidget/.test(lower)) emotion = 'urge';
 
   // Intent classification
   let intent = 'general';
@@ -272,6 +284,12 @@ export function getQuickActions(emotion: string): { label: string; action: strin
         { label: '🌿 Ground', action: 'grounding' },
         { label: '💧 Water', action: 'hydrate' },
         { label: '😴 Rest', action: 'rest' },
+      ];
+    case 'urge':
+      return [
+        { label: '🌊 Urge Surfing', action: 'urge' },
+        { label: '🌬️ Breathe', action: 'breathing' },
+        { label: '🌿 Ground', action: 'grounding' },
       ];
     default:
       return [

@@ -50,6 +50,10 @@ export default function RootLayout() {
                     options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }}
                   />
                   <Stack.Screen
+                    name="urge"
+                    options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }}
+                  />
+                  <Stack.Screen
                     name="roadmap"
                     options={{ presentation: 'card', animation: 'slide_from_right' }}
                   />

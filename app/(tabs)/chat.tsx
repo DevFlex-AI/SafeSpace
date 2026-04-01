@@ -1,8 +1,8 @@
 // Chat Screen — AI companion with safety layer + glassmorphism + voice chat
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, Pressable, StyleSheet, TextInput,
-  KeyboardAvoidingView, Platform,
+  KeyboardAvoidingView, Platform, Linking, Alert, useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -19,13 +19,14 @@ import { getAIResponse, getQuickActions } from '../../services/aiChat';
 import { APP_CONFIG } from '../../constants/config';
 import BunsIndicator from '../../components/BunsIndicator';
 import EmergencyButton from '../../components/EmergencyButton';
+import VoiceChatOverlay from '../../components/VoiceChatOverlay';
 
 const SUGGESTED_PROMPTS = [
   { emoji: '😰', label: 'I feel anxious about school', message: 'I feel really anxious about school and I do not know what to do' },
   { emoji: '😔', label: 'I need motivation', message: 'I have no motivation today and everything feels hard' },
   { emoji: '🧠', label: 'I can not focus', message: 'I can not focus on anything today and my mind keeps wandering' },
   { emoji: '😴', label: 'I feel exhausted', message: 'I feel so tired and exhausted I do not want to do anything' },
-  { emoji: '😊', label: 'Something good happened', message: 'Something good happened today and I want to share it' },
+  { emoji: '✋', label: 'I feel an urge', message: 'I am feeling the urge to pull my hair and I need help redirecting it' },
   { emoji: '💭', label: 'I just need to talk', message: 'I just need someone to talk to right now' },
 ];
 
@@ -33,20 +34,52 @@ function TypingIndicator() {
   return <BunsIndicator />;
 }
 
-function CrisisBanner() {
+function CrisisBanner({ contacts }: { contacts: Array<{ name: string; phone: string }> }) {
+  const call911 = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    Alert.alert('🚨 Call Emergency Services?', 'This will call 911 immediately.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Call 911', style: 'destructive', onPress: () => Linking.openURL('tel:911') },
+    ]);
+  };
+
+  const callContact = (phone: string, name: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Alert.alert(`Call ${name}?`, `This will open your phone to call ${name}.`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: `Call ${name}`, onPress: () => Linking.openURL(`tel:${phone.replace(/\D/g, '')}`) },
+    ]);
+  };
+
   return (
     <Animated.View entering={FadeIn.duration(300)} style={styles.crisisBanner}>
       <BlurView intensity={15} tint="light" style={StyleSheet.absoluteFill} />
       <View style={styles.crisisContent}>
         <MaterialIcons name="warning" size={20} color="#FFF" />
         <View style={{ flex: 1 }}>
-          <Text style={styles.crisisTitle}>You are not alone</Text>
+          <Text style={styles.crisisTitle}>You are not alone — help is here</Text>
           <Text style={styles.crisisText}>
-            {'\u{1F4DE}'} {APP_CONFIG.safety.crisisResources.phoneName}: {APP_CONFIG.safety.crisisResources.phone}
+            📞 {APP_CONFIG.safety.crisisResources.phoneName}: {APP_CONFIG.safety.crisisResources.phone}
           </Text>
           <Text style={styles.crisisText}>
-            {'\u{1F4AC}'} {APP_CONFIG.safety.crisisResources.name}: {APP_CONFIG.safety.crisisResources.action}
+            💬 {APP_CONFIG.safety.crisisResources.name}: {APP_CONFIG.safety.crisisResources.action}
           </Text>
+          {/* 911 button */}
+          <Pressable style={styles.crisis911Btn} onPress={call911}>
+            <MaterialIcons name="local-phone" size={14} color="#FFF" />
+            <Text style={styles.crisis911Text}>Call 911 Now</Text>
+          </Pressable>
+          {/* Trusted contacts */}
+          {contacts.length > 0 && (
+            <View style={styles.crisisContactsRow}>
+              {contacts.slice(0, 3).map((c, i) => (
+                <Pressable key={i} style={styles.crisisContactBtn} onPress={() => callContact(c.phone, c.name)}>
+                  <MaterialIcons name="person" size={12} color="#FFF" />
+                  <Text style={styles.crisisContactName}>{c.name}</Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
         </View>
       </View>
     </Animated.View>
@@ -55,19 +88,23 @@ function CrisisBanner() {
 
 export default function ChatScreen() {
   const insets = useSafeAreaInsets();
+  const { width: SCREEN_WIDTH } = useWindowDimensions();
   const router = useRouter();
-  const { messages, addMessage } = useApp();
+  const { messages, addMessage, contacts } = useApp();
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [showCrisis, setShowCrisis] = useState(false);
   const [lastEmotion, setLastEmotion] = useState('neutral');
+  const [showVoiceChat, setShowVoiceChat] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
+  const isTablet = SCREEN_WIDTH >= 768;
 
   useEffect(() => {
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
   }, [messages, isTyping]);
 
-  const sendMessage = (text?: string) => {
+  const sendMessage = useCallback((text?: string) => {
     const trimmed = (text || input).trim();
     if (!trimmed || isTyping) return;
     Haptics.selectionAsync();
@@ -84,15 +121,13 @@ export default function ChatScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       }
     }, APP_CONFIG.chat.typingDelay + Math.random() * 600);
-  };
-
-  const quickActions = getQuickActions(lastEmotion);
-  const showSuggestedPrompts = messages.length <= 2 && !isTyping;
+  }, [input, isTyping, addMessage]);
 
   const handleQuickAction = (action: string) => {
     Haptics.selectionAsync();
     if (action === 'breathing') router.push('/breathing');
     else if (action === 'grounding') router.push('/grounding');
+    else if (action === 'urge') router.push('/urge' as any);
     else if (action === 'task') router.push('/(tabs)/tasks');
     else if (action === 'mood') router.push('/(tabs)/mood');
     else {
@@ -107,28 +142,40 @@ export default function ChatScreen() {
     }
   };
 
+  const quickActions = getQuickActions(lastEmotion);
+  const showSuggestedPrompts = messages.length <= 2 && !isTyping;
+
   return (
     <SafeAreaView edges={['top']} style={styles.container}>
-      <EmergencyButton />
-      {/* Header with glass effect */}
-      <BlurView intensity={20} tint="light" style={styles.headerGlass}>
-        <View style={styles.header}>
-          <Image source={require('../../assets/images/chat-companion.png')} style={styles.avatar} contentFit="cover" />
-          <View style={styles.headerInfo}>
-            <Text style={styles.headerTitle}>SafeSpace</Text>
+      {/* Voice Chat Overlay */}
+      <VoiceChatOverlay
+        visible={showVoiceChat}
+        onClose={() => { setShowVoiceChat(false); setIsListening(false); }}
+        isListening={isListening}
+        audioLevel={isListening ? 0.7 : 0}
+      />
+
+      <View style={styles.header}>
+        <Image source={require('../../assets/images/chat-companion.png')} style={styles.avatar} contentFit="cover" />
+        <View style={styles.headerInfo}>
+          <Text style={styles.headerTitle}>SafeSpace</Text>
+          <View style={styles.onlineRow}>
+            <View style={styles.onlineDot} />
             <Text style={styles.headerSub}>Always here for you</Text>
           </View>
-          {/* Voice chat button */}
-          <Pressable 
-            style={styles.voiceBtn} 
-            onPress={() => { Haptics.selectionAsync(); router.push('/voice-chat'); }}
-          >
-            <MaterialIcons name="mic" size={24} color="#FFF" />
-          </Pressable>
         </View>
-      </BlurView>
+        {/* Voice chat button */}
+        <Pressable
+          style={styles.voiceBtn}
+          onPress={() => { Haptics.selectionAsync(); setShowVoiceChat(true); }}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <BlurView intensity={20} tint="light" style={StyleSheet.absoluteFill} />
+          <MaterialIcons name="mic" size={20} color={theme.primary} />
+        </Pressable>
+      </View>
 
-      {showCrisis ? <CrisisBanner /> : null}
+      {showCrisis ? <CrisisBanner contacts={contacts || []} /> : null}
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -138,7 +185,10 @@ export default function ChatScreen() {
         <ScrollView
           ref={scrollRef}
           style={{ flex: 1 }}
-          contentContainerStyle={styles.messageList}
+          contentContainerStyle={[
+            styles.messageList,
+            isTablet && { maxWidth: 640, alignSelf: 'center', width: '100%' },
+          ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
@@ -157,17 +207,12 @@ export default function ChatScreen() {
             </Animated.View>
           ))}
 
-          {/* Suggested prompts — shown at start of conversation */}
           {showSuggestedPrompts ? (
             <Animated.View entering={FadeInDown.duration(400).delay(300)} style={styles.suggestedSection}>
               <Text style={styles.suggestedTitle}>Not sure what to say? Try one of these:</Text>
               <View style={styles.suggestedGrid}>
                 {SUGGESTED_PROMPTS.map((prompt, idx) => (
-                  <Pressable
-                    key={idx}
-                    style={styles.suggestedCard}
-                    onPress={() => sendMessage(prompt.message)}
-                  >
+                  <Pressable key={idx} style={styles.suggestedCard} onPress={() => sendMessage(prompt.message)}>
                     <Text style={styles.suggestedEmoji}>{prompt.emoji}</Text>
                     <Text style={styles.suggestedLabel}>{prompt.label}</Text>
                   </Pressable>
@@ -179,7 +224,6 @@ export default function ChatScreen() {
           {isTyping ? <TypingIndicator /> : null}
         </ScrollView>
 
-        {/* Quick Actions */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickActions}>
           {quickActions.map((action, idx) => (
             <Pressable key={idx} style={styles.quickActionBtn} onPress={() => handleQuickAction(action.action)}>
@@ -188,7 +232,6 @@ export default function ChatScreen() {
           ))}
         </ScrollView>
 
-        {/* Input Bar */}
         <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, 8) }]}>
           <TextInput
             style={styles.input}
@@ -203,6 +246,13 @@ export default function ChatScreen() {
             blurOnSubmit={false}
           />
           <Pressable
+            style={styles.voiceInlineBtn}
+            onPress={() => { Haptics.selectionAsync(); setShowVoiceChat(true); }}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          >
+            <MaterialIcons name="mic-none" size={20} color={theme.primary} />
+          </Pressable>
+          <Pressable
             style={[styles.sendBtn, !input.trim() && styles.sendBtnDisabled]}
             onPress={() => sendMessage()}
             disabled={!input.trim() || isTyping}
@@ -211,148 +261,110 @@ export default function ChatScreen() {
           </Pressable>
         </View>
       </KeyboardAvoidingView>
+
+      <EmergencyButton />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.background },
-  
-  // Header with glass
-  headerGlass: {
-    borderBottomWidth: 1,
-    borderBottomColor: theme.border,
+  header: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 16, paddingVertical: 10,
+    borderBottomWidth: 1, borderBottomColor: theme.border,
+    backgroundColor: theme.surface, gap: 10,
   },
-  header: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    paddingHorizontal: 20, 
-    paddingVertical: 12, 
-    backgroundColor: 'rgba(255,255,255,0.5)',
-    gap: 12,
-  },
-  headerInfo: { flex: 1 },
   avatar: { width: 40, height: 40, borderRadius: 20 },
-  headerTitle: { fontSize: 17, fontWeight: '700', color: theme.textPrimary },
-  headerSub: { fontSize: 12, color: theme.textSecondary },
-  
-  // Voice chat button
+  headerInfo: { flex: 1 },
+  headerTitle: { fontSize: 16, fontWeight: '700', color: theme.textPrimary },
+  onlineRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 1 },
+  onlineDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#4CAF50' },
+  headerSub: { fontSize: 11, color: theme.textSecondary },
   voiceBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: theme.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 38, height: 38, borderRadius: 19,
+    overflow: 'hidden', alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: theme.border, flexShrink: 0,
   },
-
-  // Crisis banner with glass
-  crisisBanner: { 
-    flexDirection: 'row', 
-    alignItems: 'flex-start', 
-    backgroundColor: theme.error,
-    padding: 14, 
-    gap: 10, 
-    marginHorizontal: 12, 
-    marginTop: 8, 
-    borderRadius: theme.radius.md,
-    overflow: 'hidden',
+  crisisBanner: {
+    overflow: 'hidden', backgroundColor: '#C62828',
   },
-  crisisContent: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, flex: 1 },
-  crisisTitle: { fontSize: 14, fontWeight: '700', color: '#FFF', marginBottom: 4 },
-  crisisText: { fontSize: 13, color: '#FFF', lineHeight: 20 },
-
-  messageList: { padding: 16, paddingBottom: 8 },
-  messageRow: { marginBottom: 12, maxWidth: '82%' },
-  userRow: { alignSelf: 'flex-end' },
-  aiRow: { alignSelf: 'flex-start' },
-  userBubble: { 
-    backgroundColor: theme.primary, 
-    borderRadius: 20, 
-    borderBottomRightRadius: 6, 
-    paddingHorizontal: 16, 
-    paddingVertical: 12,
+  crisisContent: {
+    flexDirection: 'row', alignItems: 'flex-start',
+    paddingHorizontal: 16, paddingVertical: 12, gap: 8,
   },
-  aiBubble: { 
-    backgroundColor: 'rgba(255,255,255,0.7)', 
-    borderRadius: 20, 
-    borderBottomLeftRadius: 6, 
-    paddingHorizontal: 16, 
-    paddingVertical: 12, 
-    shadowColor: theme.shadowColor, 
-    shadowOffset: { width: 0, height: 1 }, 
-    shadowOpacity: 0.08, 
-    shadowRadius: 4, 
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.5)',
+  crisisTitle: { fontSize: 13, fontWeight: '700', color: '#FFF', marginBottom: 3 },
+  crisisText: { fontSize: 12, color: 'rgba(255,255,255,0.9)', lineHeight: 18 },
+  crisis911Btn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 20,
+    paddingHorizontal: 12, paddingVertical: 6, marginTop: 7, alignSelf: 'flex-start',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)',
   },
-  userText: { fontSize: 16, color: '#FFF', lineHeight: 22 },
-  aiText: { fontSize: 16, color: theme.textPrimary, lineHeight: 22 },
-  timestamp: { fontSize: 11, color: theme.textMuted, marginTop: 4 },
-  timestampRight: { textAlign: 'right' },
-  timestampLeft: { textAlign: 'left' },
-
-  // Suggested prompts
-  suggestedSection: { marginTop: 8, marginBottom: 16 },
-  suggestedTitle: { fontSize: 14, fontWeight: '500', color: theme.textSecondary, marginBottom: 12, textAlign: 'center' },
-  suggestedGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  suggestedCard: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    backgroundColor: 'rgba(255,255,255,0.6)', 
-    borderRadius: theme.radius.lg, 
-    paddingHorizontal: 14, 
-    paddingVertical: 12, 
-    gap: 8, 
-    borderWidth: 1, 
-    borderColor: 'rgba(255,255,255,0.8)',
-    width: '48%' as any, 
-    minWidth: 150,
+  crisis911Text: { fontSize: 12, fontWeight: '700', color: '#FFF' },
+  crisisContactsRow: { flexDirection: 'row', gap: 6, marginTop: 5, flexWrap: 'wrap' },
+  crisisContactBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 14,
+    paddingHorizontal: 8, paddingVertical: 4,
   },
-  suggestedEmoji: { fontSize: 20 },
-  suggestedLabel: { fontSize: 13, fontWeight: '500', color: theme.textPrimary, flex: 1 },
-
+  crisisContactName: { fontSize: 11, color: '#FFF', fontWeight: '600' },
+  messageList: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 },
+  messageRow: { marginBottom: 6 },
+  userRow: { alignItems: 'flex-end' },
+  aiRow: { alignItems: 'flex-start' },
+  userBubble: {
+    backgroundColor: theme.primary, borderRadius: 18, borderBottomRightRadius: 4,
+    paddingHorizontal: 14, paddingVertical: 10, maxWidth: '78%',
+  },
+  aiBubble: {
+    backgroundColor: theme.surface, borderRadius: 18, borderBottomLeftRadius: 4,
+    paddingHorizontal: 14, paddingVertical: 10, maxWidth: '78%',
+    borderWidth: 1, borderColor: theme.border,
+  },
+  userText: { fontSize: 15, color: '#FFF', lineHeight: 21 },
+  aiText: { fontSize: 15, color: theme.textPrimary, lineHeight: 21 },
+  timestamp: { fontSize: 10, marginTop: 3 },
+  timestampRight: { color: 'rgba(255,255,255,0.6)', alignSelf: 'flex-end' },
+  timestampLeft: { color: theme.textMuted },
+  suggestedSection: { marginTop: 12, marginBottom: 4 },
+  suggestedTitle: { fontSize: 13, fontWeight: '600', color: theme.textSecondary, marginBottom: 10 },
+  suggestedGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  suggestedCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: theme.surface, borderRadius: 20,
+    paddingHorizontal: 12, paddingVertical: 8,
+    borderWidth: 1, borderColor: theme.border,
+  },
+  suggestedEmoji: { fontSize: 14 },
+  suggestedLabel: { fontSize: 12, fontWeight: '500', color: theme.textPrimary },
   quickActions: { paddingHorizontal: 16, paddingVertical: 8, gap: 8 },
-  quickActionBtn: { 
-    backgroundColor: 'rgba(139,126,200,0.15)', 
-    paddingHorizontal: 16, 
-    paddingVertical: 10, 
-    borderRadius: theme.radius.full, 
-    borderWidth: 1, 
-    borderColor: 'rgba(139,126,200,0.3)' 
+  quickActionBtn: {
+    backgroundColor: theme.primarySoft, borderRadius: 20,
+    paddingHorizontal: 14, paddingVertical: 7,
+    borderWidth: 1, borderColor: theme.primaryLight + '50',
   },
-  quickActionText: { fontSize: 14, fontWeight: '500', color: theme.primaryDark },
-  inputBar: { 
-    flexDirection: 'row', 
-    alignItems: 'flex-end', 
-    paddingHorizontal: 12, 
-    paddingTop: 8, 
-    backgroundColor: 'rgba(255,255,255,0.6)', 
-    borderTopWidth: 1, 
-    borderTopColor: theme.border, 
-    gap: 8 
+  quickActionText: { fontSize: 13, fontWeight: '600', color: theme.primary },
+  inputBar: {
+    flexDirection: 'row', alignItems: 'flex-end', gap: 8,
+    paddingHorizontal: 12, paddingTop: 8,
+    borderTopWidth: 1, borderTopColor: theme.border,
+    backgroundColor: theme.surface,
   },
-  input: { 
-    flex: 1, 
-    backgroundColor: 'rgba(255,255,255,0.8)', 
-    borderRadius: theme.radius.xl, 
-    paddingHorizontal: 16, 
-    paddingVertical: 12, 
-    fontSize: 16, 
-    color: theme.textPrimary, 
-    maxHeight: 100, 
-    minHeight: 44,
-    borderWidth: 1,
-    borderColor: theme.border,
+  input: {
+    flex: 1, backgroundColor: theme.backgroundSecondary, borderRadius: 22,
+    paddingHorizontal: 16, paddingVertical: Platform.OS === 'ios' ? 10 : 8,
+    fontSize: 15, color: theme.textPrimary, maxHeight: 100,
+    borderWidth: 1, borderColor: theme.border,
   },
-  sendBtn: { 
-    width: 44, 
-    height: 44, 
-    borderRadius: 22, 
-    backgroundColor: theme.primary, 
-    alignItems: 'center', 
-    justifyContent: 'center' 
+  voiceInlineBtn: {
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: theme.primarySoft,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 1,
   },
-  sendBtnDisabled: { backgroundColor: theme.backgroundSecondary },
+  sendBtn: {
+    width: 42, height: 42, borderRadius: 21,
+    backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center', marginBottom: 1,
+  },
+  sendBtnDisabled: { backgroundColor: theme.border },
 });

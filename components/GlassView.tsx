@@ -5,6 +5,7 @@ import { StyleSheet, View, ViewStyle, Pressable, StyleProp } from 'react-native'
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
+import theme from '../constants/theme';
 
 export type GlassVariant = 'light' | 'medium' | 'dark' | 'primary' | 'accent' | 'urgent';
 export type BlurIntensity = 'light' | 'medium' | 'heavy' | 'extreme';
@@ -18,7 +19,7 @@ interface GlassViewProps {
   onPress?: () => void;
   disabled?: boolean;
   hapticFeedback?: boolean;
-  elevated?: boolean; // Adds shadow for elevated appearance
+  elevated?: boolean;
 }
 
 export default function GlassView({
@@ -36,9 +37,7 @@ export default function GlassView({
   const blurAmount = theme.blur[blurIntensity];
 
   const handlePress = () => {
-    if (hapticFeedback) {
-      Haptics.selectionAsync();
-    }
+    if (hapticFeedback) Haptics.selectionAsync();
     onPress?.();
   };
 
@@ -55,28 +54,19 @@ export default function GlassView({
     }),
   };
 
-  // For accessibility - reduced motion/blur preference
-  // If blur is not supported or reduced, we use a simple semi-transparent view
-  const useFallback = false; // Could check AppContext.settings.reducedMotion here
-
   const content = (
     <>
-      {/* Background blur layer */}
       <BlurView
         intensity={blurAmount}
         tint="default"
         style={[StyleSheet.absoluteFill, { borderRadius }]}
       />
-      
-      {/* Gradient overlay for depth */}
       <LinearGradient
         colors={['rgba(255,255,255,0.3)', 'rgba(255,255,255,0.1)']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={[StyleSheet.absoluteFill, { borderRadius }]}
       />
-      
-      {/* Content */}
       <View style={styles.content}>
         {children}
       </View>
@@ -112,6 +102,3 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
 });
-
-// TypeScript reference to theme
-import theme from '../constants/theme';
