@@ -15,7 +15,7 @@ import Animated, {
 import { BlurView } from 'expo-blur';
 import theme from '../../constants/theme';
 import { useApp } from '../../contexts/AppContext';
-import { getAIResponse, getQuickActions } from '../../services/aiChat';
+import { getAIResponse, getQuickActions, AIMessage } from '../../services/aiChat';
 import { APP_CONFIG } from '../../constants/config';
 import BunsIndicator from '../../components/BunsIndicator';
 import EmergencyButton from '../../components/EmergencyButton';
@@ -104,24 +104,34 @@ export default function ChatScreen() {
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
   }, [messages, isTyping]);
 
-  const sendMessage = useCallback((text?: string) => {
+  const sendMessage = useCallback(async (text?: string) => {
     const trimmed = (text || input).trim();
     if (!trimmed || isTyping) return;
     Haptics.selectionAsync();
     addMessage(trimmed, 'user');
     setInput('');
     setIsTyping(true);
-    setTimeout(() => {
-      const result = getAIResponse(trimmed);
+    // Build history for context (last 12 messages before this one)
+    const history: AIMessage[] = messages.slice(-12).map(m => ({
+      role: m.sender === 'user' ? 'user' : 'assistant',
+      content: m.content,
+    }));
+    // Small delay so typing indicator shows before API call
+    await new Promise(r => setTimeout(r, 300));
+    try {
+      const result = await getAIResponse(trimmed, history);
       addMessage(result.response, 'ai', result.emotion);
       setLastEmotion(result.emotion);
-      setIsTyping(false);
       if (result.isDistress) {
         setShowCrisis(true);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       }
-    }, APP_CONFIG.chat.typingDelay + Math.random() * 600);
-  }, [input, isTyping, addMessage]);
+    } catch (e) {
+      addMessage("Something went wrong — please try again.", 'ai', 'neutral');
+    } finally {
+      setIsTyping(false);
+    }
+  }, [input, isTyping, addMessage, messages]);
 
   const handleQuickAction = (action: string) => {
     Haptics.selectionAsync();
@@ -368,3 +378,4 @@ const styles = StyleSheet.create({
   },
   sendBtnDisabled: { backgroundColor: theme.border },
 });
+

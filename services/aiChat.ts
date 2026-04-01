@@ -1,267 +1,82 @@
-// AI Chat Response Engine with Safety Layer
-// Professional, clinically-informed responses with comprehensive safety
-// Mocked local AI — no external API calls
+// AI Chat Service — Real OpenAI GPT-4o-mini
+// Falls back gracefully if no API key configured
 
 import { APP_CONFIG } from '../constants/config';
 
-interface ParsedInput {
-  text: string;
+export interface AIMessage {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+}
+
+export interface AIResponse {
+  response: string;
   emotion: string;
-  intent: string;
   isDistress: boolean;
 }
 
-// Professional system prompt
-export const SYSTEM_PROMPT = `
-You are SafeSpace, a Professional Crisis Counselor and mental wellness companion designed to provide 
-empathetic, clinically-informed support. Your role:
+// ─── System Prompt ────────────────────────────────────────────────────────────
+const SYSTEM_PROMPT = `You are SafeSpace — a warm, genuinely caring mental wellness companion for teens and young adults. You're like a trusted older sibling who happens to know a lot about mental health.
 
-1. ACTIVE LISTENING: Reflect understanding before problem-solving
-2. EMOTIONAL VALIDATION: Acknowledge feelings without judgment
-3. PERSONALIZED RESPONSES: Tailor your tone to the user's emotional state
-4. SAFETY FIRST: Recognize crisis indicators and provide appropriate resources immediately
-5. ENCOURAGE AUTONOMY: Support user agency, never lecture or dictate
-6. CULTURAL SENSITIVITY: Be inclusive and respectful of diverse backgrounds
-7. CRISIS STABILIZATION: Use professional counseling techniques to de-escalate distress
+Your personality:
+- Real and warm, not clinical or robotic
+- Short replies (2-4 sentences usually) unless more is needed
+- Never use fake enthusiasm or hollow phrases like "That's so great!" 
+- Be honest, gentle, curious about the person
+- Use light humor when appropriate but never minimize real pain
+- Match the user's energy — chill when they're chill, present when they're hurting
 
-BOUNDARIES:
-- I am a professional AI companion, but not a replacement for a human therapist
-- If someone is in crisis, I prioritize connecting them with professional help and stay with them
-- I acknowledge emotions without judgment
-- I encourage professional help when appropriate
-- I respect user autonomy and never lecture
+What you do:
+- Listen and reflect back what you heard
+- Ask ONE follow-up question at a time, never a list of questions
+- Suggest tools gently (breathing, grounding, urge surfing) — don't push them
+- Validate before advising
+- Normalize what they're feeling
 
-Remember: Your goal is to make the user feel safe, heard, supported, and empowered.
-`.trim();
+What you DON'T do:
+- Lecture, moralize, or add unsolicited advice  
+- Say "I'm just an AI" — you're SafeSpace, their companion
+- Use bullet points or formal formatting in casual chat
+- Write walls of text
 
-// Crisis response
-function getCrisisResponse(): string {
-  const { crisisResources, emergency } = APP_CONFIG.safety;
-  return `I hear you, and I want you to know that you matter deeply. What you're experiencing feels real and important, and you don't have to face this alone.\n\n🆘 **You deserve immediate support:**\n\n📞 **${crisisResources.phoneName}**: Call or text **${crisisResources.phone}** (24/7, free)\n💬 **${crisisResources.name}**: ${crisisResources.action}\n🚨 **Emergency**: If you're in immediate danger, call **${emergency.primary}**\n\nYou're not alone in this. Would you like me to help you take the next step?`;
+For trichotillomania / hair pulling / picking / urges:
+- Be extra gentle, zero judgment
+- Normalize it as a sensory/anxiety response
+- Suggest the in-app Urge Surfing tool
+
+SAFETY: If the user mentions suicide, self-harm, wanting to die, or is in immediate danger — respond with warm care AND include these resources:
+📞 988 Suicide & Crisis Lifeline (call or text 988)
+💬 Crisis Text Line: text HOME to 741741
+🚨 If immediate danger: call 911
+
+You are NOT a replacement for therapy. Gently encourage professional support when it seems right — once, not repeatedly.`;
+
+// ─── Crisis Keywords ──────────────────────────────────────────────────────────
+const CRISIS_KEYWORDS = APP_CONFIG.safety.distressKeywords;
+
+function checkDistress(text: string): boolean {
+  const lower = text.toLowerCase();
+  return CRISIS_KEYWORDS.some(k => lower.includes(k));
 }
 
-// Response templates by emotion × intent
-const RESPONSES: Record<string, Record<string, string[]>> = {
-  positive: {
-    general: [
-      "That's wonderful to hear! What made today feel good?",
-      "I'm glad you're feeling positive! Keep riding that wave. 🌊",
-      "That's a great moment to celebrate. Would you like to log this mood?",
-      "I'm genuinely happy for you! These positive moments matter. Would you like to share more?",
-    ],
-    greeting: [
-      "Hey! You sound like you're in good spirits today! What's the good news?",
-      "Hi there! Great to hear from you. Sounds like things are going well!",
-      "Hello! I'm so glad you're here. What's been making you feel good?",
-    ],
-    gratitude: [
-      "You're welcome! I'm always here when you need me. 💜",
-      "That means a lot! I'm glad I could help.",
-      "It's my honor to be here for you. Thank you for sharing.",
-    ],
-    seeking_advice: [
-      "That's great that you're looking to build on this positive energy! What would help you make the most of it?",
-    ],
-  },
-  sad: {
-    general: [
-      "I'm here with you. What you're feeling matters, and it's completely valid. Would you like to share more?",
-      "I hear the heaviness in your words. Being sad is a human experience, and you don't have to carry it alone. Let's talk.",
-      "Thank you for trusting me with this. Would it help to explore what's contributing to these feelings?",
-    ],
-    seeking_advice: [
-      "When things feel heavy, sometimes the smallest step helps. Could you try one tiny task from your list? Just one — no pressure.",
-      "One thing that might help: write down what you're feeling. Getting it out of your head can lighten the weight a bit.",
-      "I notice you're looking for some support. What has helped you get through difficult times before?",
-    ],
-    negative_self: [
-      "I understand it feels that way right now. But feelings aren't facts — they pass. You've gotten through tough moments before. 💜",
-      "It's hard when everything feels impossible. But you reached out to me, and that takes strength. What's one small thing you could do right now?",
-      "That negative self-talk isn't telling the whole story. You reached out, which shows real courage. I'm proud of you for that.",
-    ],
-    school: [
-      "School stress can feel overwhelming. You don't have to be perfect. What's one thing about school that's bothering you most?",
-      "It's okay if school feels hard right now. Everyone learns at their own pace. Would it help to break things into smaller pieces?",
-      "Academic pressure is real and valid. What part feels most challenging right now?",
-    ],
-    overwhelmed: [
-      "It sounds like you're carrying a lot right now. Let's take it one step at a time. What's the most immediate thing on your mind?",
-      "When everything feels like too much, it's okay to pause. Would you like to try a grounding exercise together?",
-      "I hear that overwhelm. Taking a breath and breaking things down can help. What feels most pressing?",
-    ],
-  },
-  anxious: {
-    general: [
-      "I notice you might be feeling anxious. That's your body's way of trying to protect you, even when there's no immediate danger. Would you like to try a grounding exercise?",
-      "Anxiety can feel really overwhelming. Let's slow things down together. Can you take one deep breath with me?",
-      "Thank you for sharing what's worrying you. Anxiety often feels bigger when we keep it inside. I'm here to listen.",
-    ],
-    calm_tools: [
-      "Great idea! The breathing exercise can help calm your nervous system. Would you like to try the 4-4-6 breathing, or the 5-4-3-2-1 grounding technique?",
-      "Let's do this together. Try the breathing tool — it only takes a minute and can make a real difference. 🌿",
-      "I love that you're taking initiative. Would you like to try box breathing (4-4-4-4) or the 5-4-3-2-1 exercise?",
-    ],
-    school: [
-      "School anxiety is really common — you're not alone in this. What's the specific thing making you anxious? Sometimes naming it helps.",
-      "Tests and schoolwork can trigger a lot of anxiety. Remember: a grade doesn't define your worth. Would breaking the task into tiny pieces help?",
-      "Academic anxiety is valid. What's the worst-case scenario you're imagining, and how likely is it really?",
-    ],
-    panic: [
-      "I'm here. Let's work through this together. Can you name 5 things you can see right now?",
-      "Panic feels terrifying, but it's not dangerous — it's your body being very protective. Let's slow your breathing together.",
-      "You're safe right now. Let's try the 5-4-3-2-1 grounding technique together. What's one thing you can touch?",
-    ],
-  },
-  angry: {
-    general: [
-      "It sounds like you're frustrated, and that's valid. Your feelings matter. Want to tell me more about what happened?",
-      "Anger often tells us something isn't fair or our boundaries were crossed. What's going on?",
-      "I hear the frustration in your words. It's okay to feel angry. Would you like to talk through it?",
-    ],
-    school: [
-      "That does sound unfair. It's okay to feel angry about it. Have you been able to talk to anyone about this?",
-      "School situations can be really frustrating. Your feelings about this are valid. What would help you feel better right now?",
-    ],
-    relationships: [
-      "Relationship conflicts can be really draining. What happened from your perspective?",
-      "I'm here to support you without judgment. What would feel most helpful right now — venting or problem-solving?",
-    ],
-  },
-  tired: {
-    general: [
-      "Being exhausted makes everything harder. Are you able to rest, even for a few minutes?",
-      "It sounds like you need to recharge. That's not being lazy — it's taking care of yourself. What would feel restful right now?",
-      "Tiredness can make feelings feel bigger. If you can, try to rest. You deserve a break. 🌙",
-    ],
-    seeking_advice: [
-      "When you're this tired, the best advice is: be gentle with yourself. Can you do one easy task and then rest?",
-      "Rest is productive too. Your wellbeing matters more than productivity. Would you like me to help you take a break?",
-    ],
-    burnout: [
-      "It sounds like you might be experiencing burnout. This is your body telling you to slow down. What can you let go of, even temporarily?",
-      "Burnout is real and it deserves real rest. I'm concerned about you. Would you like to explore what boundaries might help?",
-    ],
-  },
-  confused: {
-    general: [
-      "It's okay not to have all the answers. What's on your mind? Sometimes talking it through helps.",
-      "Feeling stuck is normal. Let's think about this together. What part feels most confusing?",
-      "Confusion is often the first step toward clarity. Would you like to break this down together?",
-    ],
-    seeking_advice: [
-      "When things feel confusing, try focusing on just the next tiny step. What's one small thing you could figure out right now?",
-      "Let's simplify. What feels most important to figure out first?",
-    ],
-  },
-  bored: {
-    general: [
-      "Boredom can actually be a sign you need something meaningful. Have you checked your tasks? There might be something fun there!",
-      "Hey, boredom is an opportunity! Would you like to try a task, or would you rather just chat?",
-      "Sometimes boredom is our mind asking for something new. Would you like some suggestions for how to shake things up?",
-    ],
-  },
-  neutral: {
-    general: [
-      "Thanks for sharing. How are you feeling about things today?",
-      "I'm here to listen. Tell me more about what's going on.",
-      "Got it! Is there anything specific you'd like to talk about or work on?",
-      "I'm here for whatever you need — whether that'schat, a task, or just some company.",
-    ],
-    greeting: [
-      "Hey there! How's your day going? I'm here if you need anything. 💜",
-      "Hi! Good to see you. How are you feeling today?",
-      "Welcome back! Ready for a check-in, or just want to chat?",
-      "Hello! It's good to connect with you. What's on your mind?",
-    ],
-    farewell: [
-      "Take care! Remember, I'm here whenever you need me. You're doing great. 💜",
-      "Bye for now! I hope the rest of your day goes well. 🌿",
-      "Sending you positive vibes until we chat again. You've got this! ✨",
-    ],
-    calm_tools: [
-      "Great choice! Would you like to try the breathing exercise (4-4-6 pattern) or the grounding exercise (5-4-3-2-1)?",
-      "Let's find some calm together. Which exercise calls to you — breathing or grounding?",
-    ],
-  },
-  urge: {
-    general: [
-      "I hear you, and noticing the urge is already the hardest step. You are not your urge — you are the one watching it. Want to try surfing it together?",
-      "That pull is real, and so is your ability to ride it out. The urge peaks and then fades — every single time. Can I walk you through some redirection?",
-      "You reached out instead of acting on it. That takes so much strength. Let us try to surf this wave — tap the Urge Surfing tool and I will be right here.",
-    ],
-    seeking_advice: [
-      "One thing that really helps is keeping your hands busy the moment you notice the urge. A stress ball, a hair tie to snap, or even cold water on your wrists can break the pattern.",
-      "Urge surfing is the technique — you observe the urge like a wave, let it rise without acting, and watch it fade. It usually peaks within 90 seconds. Want to try the timer together?",
-    ],
-  },
-};
-
-// Parse user input for emotion and intent
-function parseInput(text: string): ParsedInput {
-  const lower = text.toLowerCase().trim();
-
-  // Safety check first
-  const isDistress = APP_CONFIG.safety.distressKeywords.some(keyword =>
-    lower.includes(keyword)
-  );
-
-  // Emotion tagging
-  let emotion = 'neutral';
-  if (/happy|great|good|amazing|awesome|wonderful|excited|glad|proud/.test(lower)) emotion = 'positive';
-  else if (/sad|down|depressed|lonely|alone|miss|cry|tear/.test(lower)) emotion = 'sad';
-  else if (/anxious|anxiety|nervous|worried|scared|fear|panic|stress/.test(lower)) emotion = 'anxious';
-  else if (/angry|mad|frustrated|annoyed|hate|unfair/.test(lower)) emotion = 'angry';
-  else if (/tired|exhausted|drain|sleep|fatigue|burnout|overwhelm/.test(lower)) emotion = 'tired';
-  else if (/confused|lost|don't know|unsure|stuck|help/.test(lower)) emotion = 'confused';
-  else if (/bored|boring|nothing|meh/.test(lower)) emotion = 'bored';
-  else if (/overwhelm|too much|can't cope/.test(lower)) emotion = 'overwhelmed';
-  else if (/panic|freaking out|losing control/.test(lower)) emotion = 'panic';
-  else if (/relationship|friends|family| boyfriend| girlfriend|parents/.test(lower)) emotion = 'relationships';
-  else if (/urge|pull|pulling|trich|hair pull|pick|picking|fidget/.test(lower)) emotion = 'urge';
-
-  // Intent classification
-  let intent = 'general';
-  if (/what should i|suggest|help me|advice|recommend/.test(lower)) intent = 'seeking_advice';
-  else if (/thank|thanks|appreciate/.test(lower)) intent = 'gratitude';
-  else if (/hi|hello|hey|morning|afternoon|evening/.test(lower)) intent = 'greeting';
-  else if (/bye|goodbye|later|night/.test(lower)) intent = 'farewell';
-  else if (/can't|unable|impossible|never|won't/.test(lower)) intent = 'negative_self';
-  else if (/breathe|calm|relax|ground/.test(lower)) intent = 'calm_tools';
-  else if (/school|class|teacher|homework|test|exam|grade/.test(lower)) intent = 'school';
-
-  return { text: lower, emotion, intent, isDistress };
+// ─── Emotion detection (for quick actions + UI tint) ─────────────────────────
+function detectEmotion(text: string): string {
+  const lower = text.toLowerCase();
+  if (/happy|great|good|excited|amazing|love|wonderful|joy|glad|yay/.test(lower)) return 'positive';
+  if (/anxious|nervous|worry|scared|fear|panic|stress|overwhelm/.test(lower)) return 'anxious';
+  if (/sad|depress|cry|tears|hopeless|empty|numb|grief|miss/.test(lower)) return 'sad';
+  if (/angry|mad|furious|pissed|frustrated|rage|hate/.test(lower)) return 'angry';
+  if (/tired|exhaust|drain|sleep|no energy|fatigue/.test(lower)) return 'tired';
+  if (/urge|pull|pulling|trich|hair pull|pick|picking|fidget/.test(lower)) return 'urge';
+  if (/panic|freaking out|losing control/.test(lower)) return 'panic';
+  if (/confused|lost|don't know|unsure|stuck/.test(lower)) return 'confused';
+  return 'neutral';
 }
 
-// Get AI response
-export function getAIResponse(userMessage: string): { response: string; emotion: string; isDistress: boolean } {
-  const parsed = parseInput(userMessage);
-
-  // Crisis response takes absolute priority
-  if (parsed.isDistress) {
-    return {
-      response: getCrisisResponse(),
-      emotion: 'distress',
-      isDistress: true,
-    };
-  }
-
-  // Find matching response
-  const emotionResponses = RESPONSES[parsed.emotion] || RESPONSES.neutral;
-  const intentResponses = emotionResponses[parsed.intent] || emotionResponses.general || RESPONSES.neutral.general;
-
-  const response = intentResponses[Math.floor(Math.random() * intentResponses.length)];
-
-  return {
-    response,
-    emotion: parsed.emotion,
-    isDistress: false,
-  };
-}
-
-// Quick action suggestions based on mood
+// ─── Quick actions ────────────────────────────────────────────────────────────
 export function getQuickActions(emotion: string): { label: string; action: string }[] {
   switch (emotion) {
     case 'anxious':
+    case 'panic':
       return [
         { label: '🌬️ Breathe', action: 'breathing' },
         { label: '🌿 Ground', action: 'grounding' },
@@ -297,5 +112,113 @@ export function getQuickActions(emotion: string): { label: string; action: strin
         { label: '✅ Tasks', action: 'task' },
         { label: '😊 Mood', action: 'mood' },
       ];
+  }
+}
+
+// ─── Fallback responses (when no API key) ─────────────────────────────────────
+const FALLBACK_RESPONSES: Record<string, string[]> = {
+  positive: [
+    "That's genuinely good to hear 💜 What's been going well?",
+    "Nice, I'm glad things are looking up. What made today feel good?",
+  ],
+  anxious: [
+    "That sounds really overwhelming. Want to try a quick breathing exercise together?",
+    "Anxiety is exhausting. Take a breath — you don't have to figure it all out right now.",
+  ],
+  sad: [
+    "I hear you. That sounds really hard, and your feelings make sense.",
+    "It's okay to feel this way. You don't have to explain or fix it right now — I'm just here.",
+  ],
+  angry: [
+    "Yeah, that sounds genuinely frustrating. What happened?",
+    "That would make anyone angry. Want to just vent for a bit?",
+  ],
+  urge: [
+    "I'm really glad you said something instead of just sitting with that alone. Want to try the Urge Surfing tool? It usually only takes 90 seconds.",
+    "The urge is real but it will peak and pass — it always does. Can I walk you through some hand redirections?",
+  ],
+  neutral: [
+    "I'm here. What's on your mind?",
+    "Hey, glad you came. What's going on?",
+    "I'm listening. Tell me more.",
+  ],
+};
+
+function getFallbackResponse(emotion: string): string {
+  const pool = FALLBACK_RESPONSES[emotion] || FALLBACK_RESPONSES.neutral;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+// ─── Main API call ─────────────────────────────────────────────────────────────
+export async function getAIResponse(
+  userMessage: string,
+  history: AIMessage[] = []
+): Promise<AIResponse> {
+  const isDistress = checkDistress(userMessage);
+  const emotion = detectEmotion(userMessage);
+
+  const apiKey = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
+
+  // No API key — use fallback
+  if (!apiKey) {
+    console.warn('[SafeSpace] No EXPO_PUBLIC_OPENAI_API_KEY set — using fallback responses');
+    if (isDistress) {
+      return {
+        response: `I hear you, and I'm really glad you told me. Please reach out for immediate support:\n\n📞 **988** — Suicide & Crisis Lifeline (call or text, 24/7)\n💬 **Crisis Text Line** — text HOME to 741741\n🚨 If you're in immediate danger, call **911**\n\nYou matter, and you don't have to go through this alone.`,
+        emotion: 'distress',
+        isDistress: true,
+      };
+    }
+    return {
+      response: getFallbackResponse(emotion),
+      emotion,
+      isDistress: false,
+    };
+  }
+
+  // Build messages array
+  const messages: AIMessage[] = [
+    { role: 'system', content: SYSTEM_PROMPT },
+    ...history.slice(-12), // last 6 turns (12 messages) for context
+    { role: 'user', content: userMessage },
+  ];
+
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages,
+        max_tokens: 300,
+        temperature: 0.85,
+        presence_penalty: 0.3,
+      }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error('[SafeSpace] OpenAI error:', res.status, errText);
+      throw new Error(`OpenAI ${res.status}`);
+    }
+
+    const data = await res.json();
+    const reply = data.choices?.[0]?.message?.content?.trim() ?? getFallbackResponse(emotion);
+
+    return {
+      response: reply,
+      emotion: isDistress ? 'distress' : emotion,
+      isDistress,
+    };
+  } catch (err) {
+    console.error('[SafeSpace] AI call failed, using fallback:', err);
+    return {
+      response: getFallbackResponse(emotion),
+      emotion,
+      isDistress: false,
+    };
   }
 }
