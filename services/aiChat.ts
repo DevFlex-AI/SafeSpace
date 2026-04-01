@@ -191,7 +191,7 @@ export async function getAIResponse(
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4o',
         messages,
         max_tokens: 300,
         temperature: 0.85,
