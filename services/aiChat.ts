@@ -157,11 +157,11 @@ export async function getAIResponse(
   const isDistress = checkDistress(userMessage);
   const emotion = detectEmotion(userMessage);
 
-  const apiKey = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
+  const apiKey = process.env.EXPO_PUBLIC_OPENCODE_API_KEY;
 
   // No API key — use fallback
   if (!apiKey) {
-    console.warn('[SafeSpace] No EXPO_PUBLIC_OPENAI_API_KEY set — using fallback responses');
+    console.warn('[SafeSpace] No EXPO_PUBLIC_OPENCODE_API_KEY set — using fallback responses');
     if (isDistress) {
       return {
         response: `I hear you, and I'm really glad you told me. Please reach out for immediate support:\n\n📞 **988** — Suicide & Crisis Lifeline (call or text, 24/7)\n💬 **Crisis Text Line** — text HOME to 741741\n🚨 If you're in immediate danger, call **911**\n\nYou matter, and you don't have to go through this alone.`,
@@ -184,14 +184,14 @@ export async function getAIResponse(
   ];
 
   try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    const res = await fetch('https://opencode.ai/zen/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: 'big-pickle',
         messages,
         max_tokens: 300,
         temperature: 0.85,
